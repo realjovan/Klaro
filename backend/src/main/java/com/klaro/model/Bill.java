@@ -131,6 +131,11 @@ public class Bill {
         return createdAt;
     }
 
+    // Used by PUT /api/bills/{id} so an update targets an existing row.
+    public void setId(Long id) {
+        this.id = id;
+    }
+
     public void setEstablishment(String establishment) {
         this.establishment = establishment;
     }

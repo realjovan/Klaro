@@ -41,6 +41,11 @@ public class Budget {
         return currency;
     }
 
+    // Used by PUT /api/budgets/{id} so an update targets an existing row.
+    public void setId(Long id) {
+        this.id = id;
+    }
+
     public void setCategory(String category) {
         this.category = category;
     }

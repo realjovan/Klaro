@@ -99,6 +99,11 @@ public class Receipt {
         return createdAt;
     }
 
+    // Used by PUT /api/receipts/{id} so an update targets an existing row.
+    public void setId(Long id) {
+        this.id = id;
+    }
+
     public void setMerchant(String merchant) {
         this.merchant = merchant;
     }
