@@ -1,4 +1,4 @@
-package com.klaro;
+package com.klaro.controller;
 
 import java.util.Map;
 
