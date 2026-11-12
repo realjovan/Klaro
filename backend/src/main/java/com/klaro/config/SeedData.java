@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Configuration;
 
 import com.klaro.model.Bill;
 import com.klaro.model.Budget;
+import com.klaro.model.Category;
 import com.klaro.model.Receipt;
 import com.klaro.repository.BillRepository;
 import com.klaro.repository.BudgetRepository;
@@ -30,11 +31,11 @@ public class SeedData {
             if (receipts.count() == 0) {
                 for (int m = 0; m < 3; m++) {
                     LocalDate base = LocalDate.now().minusMonths(m);
-                    receipts.save(receipt("SM Supermarket", base.withDayOfMonth(3), "1850.75", "Food"));
-                    receipts.save(receipt("Jollibee", base.withDayOfMonth(9), "389.00", "Food"));
-                    receipts.save(receipt("Shell", base.withDayOfMonth(12), "1500.00", "Transport"));
-                    receipts.save(receipt("Mercury Drug", base.withDayOfMonth(18), "620.50", "Health"));
-                    receipts.save(receipt("Uniqlo", base.withDayOfMonth(22), "2490.00", "Shopping"));
+                    receipts.save(receipt("SM Supermarket", base.withDayOfMonth(3), "1850.75", Category.FOOD));
+                    receipts.save(receipt("Jollibee", base.withDayOfMonth(9), "389.00", Category.FOOD));
+                    receipts.save(receipt("Shell", base.withDayOfMonth(12), "1500.00", Category.TRANSPORT));
+                    receipts.save(receipt("Mercury Drug", base.withDayOfMonth(18), "620.50", Category.HEALTH));
+                    receipts.save(receipt("Uniqlo", base.withDayOfMonth(22), "2490.00", Category.SHOPPING));
                 }
             }
             if (bills.count() == 0) {
@@ -46,15 +47,15 @@ public class SeedData {
                 }
             }
             if (budgets.count() == 0) {
-                budgets.save(budget("Food", "8000.00"));
-                budgets.save(budget("Transport", "3000.00"));
-                budgets.save(budget("Health", "1500.00"));
-                budgets.save(budget("Shopping", "2000.00"));
+                budgets.save(budget(Category.FOOD, "8000.00"));
+                budgets.save(budget(Category.TRANSPORT, "3000.00"));
+                budgets.save(budget(Category.HEALTH, "1500.00"));
+                budgets.save(budget(Category.SHOPPING, "2000.00"));
             }
         };
     }
 
-    private Receipt receipt(String merchant, LocalDate date, String total, String category) {
+    private Receipt receipt(String merchant, LocalDate date, String total, Category category) {
         Receipt r = new Receipt();
         r.setMerchant(merchant);
         r.setReceiptDate(date);
@@ -81,7 +82,7 @@ public class SeedData {
         return b;
     }
 
-    private Budget budget(String category, String limit) {
+    private Budget budget(Category category, String limit) {
         Budget b = new Budget();
         b.setCategory(category);
         b.setMonthlyLimit(new BigDecimal(limit));

@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 
 import com.klaro.dto.CategoryTotal;
 import com.klaro.dto.MonthlyTotal;
+import com.klaro.model.Category;
 
 /** Placeholder that returns fixed fake numbers. Replace with real queries. */
 @Service
@@ -15,9 +16,9 @@ public class StubAnalyticsService implements AnalyticsService {
     @Override
     public List<CategoryTotal> spendingByCategory() {
         return List.of(
-                new CategoryTotal("Food", new BigDecimal("4250.00")),
-                new CategoryTotal("Transport", new BigDecimal("1800.00")),
-                new CategoryTotal("Utilities", new BigDecimal("3600.00")));
+                new CategoryTotal(Category.FOOD, new BigDecimal("4250.00")),
+                new CategoryTotal(Category.TRANSPORT, new BigDecimal("1800.00")),
+                new CategoryTotal(Category.UTILITIES, new BigDecimal("3600.00")));
     }
 
     @Override

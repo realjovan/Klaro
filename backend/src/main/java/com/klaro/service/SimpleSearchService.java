@@ -23,7 +23,7 @@ public class SimpleSearchService implements SearchService {
         String q = query == null ? "" : query.toLowerCase(Locale.ROOT);
         return receipts.findAll().stream()
                 .filter(r -> contains(r.getMerchant(), q)
-                        || contains(r.getCategory(), q)
+                        || (r.getCategory() != null && contains(r.getCategory().name(), q))
                         || contains(r.getRawText(), q))
                 .toList();
     }

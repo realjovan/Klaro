@@ -2,8 +2,8 @@ package com.klaro.model;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 /**
  * A utility or recurring bill (electricity, water, internet, ...). Each
@@ -53,13 +53,14 @@ public class Bill {
     private Double confidence;
     private boolean needsReview;
 
-    private LocalDateTime createdAt;
+    // Exact moment the row was created (stored as timestamptz, in UTC).
+    private Instant createdAt;
 
     // Runs automatically the first time the row is saved.
     @PrePersist
     void onCreate() {
         if (createdAt == null) {
-            createdAt = LocalDateTime.now();
+            createdAt = Instant.now();
         }
     }
 
@@ -127,7 +128,7 @@ public class Bill {
         return needsReview;
     }
 
-    public LocalDateTime getCreatedAt() {
+    public Instant getCreatedAt() {
         return createdAt;
     }
 
@@ -196,7 +197,7 @@ public class Bill {
         this.needsReview = needsReview;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
+    public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
     }
 

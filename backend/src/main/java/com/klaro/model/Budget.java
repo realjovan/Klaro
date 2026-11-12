@@ -14,9 +14,10 @@ public class Budget {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Must match the category names used on receipts (e.g. Food, Transport).
+    // One of the fixed categories in Category.java, stored by name (e.g. FOOD).
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String category;
+    private Category category;
 
     @Column(precision = 12, scale = 2, nullable = false)
     private BigDecimal monthlyLimit;
@@ -29,7 +30,7 @@ public class Budget {
         return id;
     }
 
-    public String getCategory() {
+    public Category getCategory() {
         return category;
     }
 
@@ -46,7 +47,7 @@ public class Budget {
         this.id = id;
     }
 
-    public void setCategory(String category) {
+    public void setCategory(Category category) {
         this.category = category;
     }
 

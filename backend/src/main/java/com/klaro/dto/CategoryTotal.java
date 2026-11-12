@@ -2,6 +2,8 @@ package com.klaro.dto;
 
 import java.math.BigDecimal;
 
-/** Total spent in one category, e.g. Food = 4,250.00. */
-public record CategoryTotal(String category, BigDecimal total) {
+import com.klaro.model.Category;
+
+/** Total spent in one category, e.g. FOOD = 4,250.00. */
+public record CategoryTotal(Category category, BigDecimal total) {
 }

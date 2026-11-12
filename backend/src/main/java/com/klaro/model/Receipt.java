@@ -2,8 +2,8 @@ package com.klaro.model;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 /**
  * A purchase receipt uploaded by the user. Each instance is one row in the
@@ -27,7 +27,8 @@ public class Receipt {
     @Column(length = 3, nullable = false)
     private String currency = "PHP";
 
-    private String category;
+    @Enumerated(EnumType.STRING)
+    private Category category;
 
     // Uploaded file name and MIME type (e.g. image/jpeg), used to show the original.
     private String fileName;
@@ -41,13 +42,14 @@ public class Receipt {
     private Double confidence;
     private boolean needsReview;
 
-    private LocalDateTime createdAt;
+    // Exact moment the row was created (stored as timestamptz, in UTC).
+    private Instant createdAt;
 
     // Runs automatically the first time the row is saved.
     @PrePersist
     void onCreate() {
         if (createdAt == null) {
-            createdAt = LocalDateTime.now();
+            createdAt = Instant.now();
         }
     }
 
@@ -71,7 +73,7 @@ public class Receipt {
         return currency;
     }
 
-    public String getCategory() {
+    public Category getCategory() {
         return category;
     }
 
@@ -95,7 +97,7 @@ public class Receipt {
         return needsReview;
     }
 
-    public LocalDateTime getCreatedAt() {
+    public Instant getCreatedAt() {
         return createdAt;
     }
 
@@ -120,7 +122,7 @@ public class Receipt {
         this.currency = currency;
     }
 
-    public void setCategory(String category) {
+    public void setCategory(Category category) {
         this.category = category;
     }
 
@@ -144,7 +146,7 @@ public class Receipt {
         this.needsReview = needsReview;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
+    public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
     }
 
