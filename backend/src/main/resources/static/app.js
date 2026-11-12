@@ -313,22 +313,63 @@
       showToast(`${doc.category} opened`);
     }
 
+    // ---- Backend connection ----
+    // Receipts and bills are loaded from the API (GET /api/receipts, /api/bills)
+    // and converted into the document shape the list and detail panel already use.
+    const peso = amount => `₱${Number(amount).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const categoryLabel = name => name ? name.charAt(0) + name.slice(1).toLowerCase() : "Other"; // FOOD -> Food
+
+    function receiptToDocument(r) {
+      const category = categoryLabel(r.category);
+      return {
+        id: `receipt-${r.id}`, apiPath: `/api/receipts/${r.id}`,
+        title: r.merchant, category, kindLabel: category, date: r.receiptDate || (r.createdAt || "").slice(0, 10),
+        text: [`Merchant: ${r.merchant}`, `Date: ${r.receiptDate}`, `Amount paid: ${peso(r.amountPaid)}`, `Category: ${category}`, r.rawText || ""]
+          .filter(Boolean).join("\n"),
+        reviewed: !r.needsReview, isSaved: false, sample: false
+      };
+    }
+
+    function billToDocument(b) {
+      return {
+        id: `bill-${b.id}`, apiPath: `/api/bills/${b.id}`,
+        title: b.merchant, category: "Utility bill", kindLabel: "Utility bill", date: b.billingDueDate || (b.createdAt || "").slice(0, 10),
+        text: [`Provider: ${b.merchant}`, `Bill type: ${b.type || "—"}`, `Due date: ${b.billingDueDate}`, `Amount due: ${peso(b.amountToPay)}`,
+          `Status: ${b.paid ? "Paid" : "Unpaid"}`, b.rawText || ""].filter(Boolean).join("\n"),
+        reviewed: !b.needsReview, isSaved: false, sample: false
+      };
+    }
+
+    // Rebuild the category filter from the categories actually present.
+    function updateCategoryFilter() {
+      const filter = document.getElementById("category-filter");
+      const current = filter.value;
+      const names = [...new Set(documents.map(doc => doc.category))].sort();
+      filter.replaceChildren(new Option("All categories", ""), ...names.map(name => new Option(name, name)));
+      filter.value = names.includes(current) ? current : "";
+    }
+
+    // Fetch everything from the backend and redraw. Also called by manual-entry.js after a save.
+    async function reloadDocuments() {
+      const [receipts, bills] = await Promise.all(["/api/receipts", "/api/bills"].map(async url => {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`${url} returned ${response.status}`);
+        return response.json();
+      }));
+      documents = [...receipts.map(receiptToDocument), ...bills.map(billToDocument)];
+      if (!documents.some(doc => doc.id === activeDocument)) activeDocument = documents[0] ? documents[0].id : null;
+      updateCategoryFilter();
+      renderApp();
+    }
+
     async function initializeApp() {
       try {
-        let stored = await getAllDocuments();
-        if (!stored.length && localStorage.getItem("klaro-samples-initialized") !== "true") {
-          stored = Object.values(docs);
-          for (const doc of stored) await saveDocument(doc);
-          localStorage.setItem("klaro-samples-initialized", "true");
-        } else if (stored.length) {
-          localStorage.setItem("klaro-samples-initialized", "true");
-        }
-        documents = stored;
-        if (!documents.some(doc => doc.id === activeDocument)) activeDocument = documents[0] ? documents[0].id : null;
-        renderApp();
+        await reloadDocuments();
       } catch (error) {
-        console.error("Could not load Klaro's local document library.", error);
-        showToast("Could not open local document storage. Try reloading or use a browser with IndexedDB enabled.");
+        console.error("Could not load documents from the backend.", error);
+        documents = [];
+        renderApp();
+        showToast("Could not reach the server. Is the backend running?");
       }
     }
 
@@ -617,13 +658,19 @@
     });
     document.getElementById("delete-doc").addEventListener("click", async () => {
       const doc = documents.find(item => item.id === activeDocument);
-      if (!doc || !window.confirm(`Delete “${doc.title}” from this device? This cannot be undone.`)) return;
+      if (!doc || !window.confirm(`Delete “${doc.title}”? This cannot be undone.`)) return;
       try {
-        await removeDocument(doc.id);
+        if (doc.apiPath) {
+          // Backend record: delete it from the database.
+          const response = await fetch(doc.apiPath, { method: "DELETE" });
+          if (!response.ok && response.status !== 404) throw new Error(`Delete failed (${response.status})`);
+        } else {
+          await removeDocument(doc.id);
+        }
         documents = documents.filter(item => item.id !== doc.id);
         activeDocument = documents[0] ? documents[0].id : null;
         renderApp();
-        showToast("Document deleted from this device.");
+        showToast("Document deleted.");
       } catch (error) {
         console.error("Could not delete the document.", error);
         showToast("Could not delete this document. Please try again.");

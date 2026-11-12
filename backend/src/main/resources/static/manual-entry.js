@@ -77,6 +77,8 @@
       }
       dialog.close();
       showToast(isBill ? "Bill saved." : "Receipt saved.");
+      // Refresh the document list (reloadDocuments is defined in app.js).
+      if (typeof reloadDocuments === "function") reloadDocuments().catch(err => console.error(err));
     } catch (error) {
       showError("Could not reach the server. Is the backend running?");
     }
