@@ -1,6 +1,9 @@
 package com.klaro.model;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -15,18 +18,26 @@ public class Receipt {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // The validation annotations (@NotBlank, @NotNull, @Positive) make the API
+    // reject incomplete input with a 400 error instead of saving it.
+    @NotBlank
     private String merchant;
 
     // Named receiptDate instead of "date" because DATE is a reserved word in SQL.
+    @NotNull
     private LocalDate receiptDate;
 
+    // Stored in the amount_paid column (Spring converts camelCase automatically).
+    @NotNull
+    @Positive
     @Column(precision = 12, scale = 2, nullable = false)
-    private BigDecimal amount_paid;
+    private BigDecimal amountPaid;
 
     // ISO 4217 code such as PHP or USD.
     @Column(length = 3, nullable = false)
     private String currency = "PHP";
 
+    @NotNull
     @Enumerated(EnumType.STRING)
     private Category category;
 
@@ -66,7 +77,7 @@ public class Receipt {
     }
 
     public BigDecimal getAmountPaid() {
-        return amount_paid;
+        return amountPaid;
     }
 
     public String getCurrency() {
@@ -115,7 +126,7 @@ public class Receipt {
     }
 
     public void setAmountPaid(BigDecimal amountPaid) {
-        this.amount_paid = amountPaid;
+        this.amountPaid = amountPaid;
     }
 
     public void setCurrency(String currency) {

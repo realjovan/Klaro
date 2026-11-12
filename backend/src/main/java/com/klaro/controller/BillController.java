@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -40,12 +42,12 @@ public class BillController {
     }
 
     @PostMapping
-    public Bill create(@RequestBody Bill bill) {
+    public Bill create(@Valid @RequestBody Bill bill) {
         return bills.save(bill);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Bill> update(@PathVariable Long id, @RequestBody Bill bill) {
+    public ResponseEntity<Bill> update(@PathVariable Long id, @Valid @RequestBody Bill bill) {
         if (!bills.existsById(id)) {
             return ResponseEntity.notFound().build();
         }
