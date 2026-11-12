@@ -16,7 +16,7 @@ public class Bill {
     private Long id;
 
     // The provider, e.g. the electric or water company.
-    private String establishment;
+    private String merchant;
 
     // Kind of bill, e.g. electricity, water, internet.
     private String type;
@@ -25,10 +25,10 @@ public class Bill {
     private LocalDate billingPeriodStart;
     private LocalDate billingPeriodEnd;
 
-    private LocalDate dueDate;
+    private LocalDate billingDueDate;
 
     @Column(precision = 12, scale = 2, nullable = false)
-    private BigDecimal dueAmount;
+    private BigDecimal amountToPay;
 
     // ISO 4217 code such as PHP or USD.
     @Column(length = 3, nullable = false)
@@ -67,8 +67,8 @@ public class Bill {
         return id;
     }
 
-    public String getEstablishment() {
-        return establishment;
+    public String getMerchant() {
+        return merchant;
     }
 
     public String getType() {
@@ -83,12 +83,12 @@ public class Bill {
         return billingPeriodEnd;
     }
 
-    public LocalDate getDueDate() {
-        return dueDate;
+    public LocalDate getBillingDueDate() {
+        return billingDueDate;
     }
 
-    public BigDecimal getDueAmount() {
-        return dueAmount;
+    public BigDecimal getAmountToPay() {
+        return amountToPay;
     }
 
     public String getCurrency() {
@@ -136,8 +136,8 @@ public class Bill {
         this.id = id;
     }
 
-    public void setEstablishment(String establishment) {
-        this.establishment = establishment;
+    public void setMerchant(String merchant) {
+        this.merchant = merchant;
     }
 
     public void setType(String type) {
@@ -152,12 +152,12 @@ public class Bill {
         this.billingPeriodEnd = billingPeriodEnd;
     }
 
-    public void setDueDate(LocalDate dueDate) {
-        this.dueDate = dueDate;
+    public void setBillingDueDate(LocalDate billingDueDate) {
+        this.billingDueDate = billingDueDate;
     }
 
-    public void setDueAmount(BigDecimal dueAmount) {
-        this.dueAmount = dueAmount;
+    public void setAmountToPay(BigDecimal amountToPay) {
+        this.amountToPay = amountToPay;
     }
 
     public void setCurrency(String currency) {

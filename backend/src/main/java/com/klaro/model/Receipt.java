@@ -21,7 +21,7 @@ public class Receipt {
     private LocalDate receiptDate;
 
     @Column(precision = 12, scale = 2, nullable = false)
-    private BigDecimal total;
+    private BigDecimal amount_paid;
 
     // ISO 4217 code such as PHP or USD.
     @Column(length = 3, nullable = false)
@@ -63,8 +63,8 @@ public class Receipt {
         return receiptDate;
     }
 
-    public BigDecimal getTotal() {
-        return total;
+    public BigDecimal getAmountPaid() {
+        return amount_paid;
     }
 
     public String getCurrency() {
@@ -112,8 +112,8 @@ public class Receipt {
         this.receiptDate = receiptDate;
     }
 
-    public void setTotal(BigDecimal total) {
-        this.total = total;
+    public void setAmountPaid(BigDecimal amountPaid) {
+        this.amount_paid = amountPaid;
     }
 
     public void setCurrency(String currency) {

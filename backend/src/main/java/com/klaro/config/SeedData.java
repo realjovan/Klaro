@@ -58,7 +58,7 @@ public class SeedData {
         Receipt r = new Receipt();
         r.setMerchant(merchant);
         r.setReceiptDate(date);
-        r.setTotal(new BigDecimal(total));
+        r.setAmountPaid(new BigDecimal(total));
         r.setCategory(category);
         r.setRawText(merchant.toUpperCase() + " TOTAL " + total);
         return r;
@@ -67,12 +67,12 @@ public class SeedData {
     private Bill bill(String provider, String type, LocalDate base, String amount,
             String usage, String unit, boolean paid) {
         Bill b = new Bill();
-        b.setEstablishment(provider);
+        b.setMerchant(provider);
         b.setType(type);
         b.setBillingPeriodStart(base.withDayOfMonth(1));
         b.setBillingPeriodEnd(base.withDayOfMonth(base.lengthOfMonth()));
-        b.setDueDate(base.withDayOfMonth(Math.min(25, base.lengthOfMonth())));
-        b.setDueAmount(new BigDecimal(amount));
+        b.setBillingDueDate(base.withDayOfMonth(Math.min(25, base.lengthOfMonth())));
+        b.setAmountToPay(new BigDecimal(amount));
         if (usage != null) {
             b.setUsageAmount(new BigDecimal(usage));
             b.setUsageUnit(unit);
