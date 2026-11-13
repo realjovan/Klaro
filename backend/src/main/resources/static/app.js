@@ -593,36 +593,80 @@
       return `The document text ${matches.length ? "that may be relevant" : "available to review"}: ${relevantLines.join(" · ")}. Check the original document before acting.`;
     }
 
-    function askQuestion(question) {
+    // Gets the assistant's reply. For now this is the local text lookup with a
+    // short pause, so the "thinking" animation is visible. When the AI chat is
+    // connected, replace the body with a call such as:
+    //   const r = await fetch("/api/chat", { method: "POST", headers: {"Content-Type": "application/json"},
+    //                                       body: JSON.stringify({ question, documentId: doc.id }) });
+    //   return { text: (await r.json()).reply, source: "Klaro AI" };
+    async function getAnswer(question, doc) {
+      await new Promise(resolve => setTimeout(resolve, 700 + Math.random() * 600));
+      return { text: answerFromDocument(question, doc), source: "Local text lookup · No AI connected" };
+    }
+
+    let chatBusy = false;
+
+    async function askQuestion(question) {
       const cleanQuestion = question.trim();
-      if (!cleanQuestion) return;
+      if (!cleanQuestion || chatBusy) return;
       const doc = documents.find(item => item.id === activeDocument);
       if (!doc) {
         showToast("Choose a document first.");
         return;
       }
       const messages = document.getElementById("chat-messages");
+      const input = document.getElementById("chat-input");
+      const sendButton = document.querySelector("#chat-form .send-button");
+
       const user = document.createElement("div");
       user.className = "user-message";
       user.textContent = cleanQuestion;
-      messages.appendChild(user);
+
+      // The assistant's row starts as a "thinking" bubble with three bouncing dots.
       const replyRow = document.createElement("div");
-      replyRow.className = "assistant-row";
+      replyRow.className = "assistant-row thinking";
       const icon = document.createElement("span");
       icon.className = "mini-assistant";
       icon.innerHTML = '<svg viewBox="0 0 24 24" fill="none"><path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3M6 6l2 2m8 8 2 2m0-12-2 2m-8 8-2 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.8"/></svg>';
       const message = document.createElement("div");
-      message.className = "message";
-      message.textContent = answerFromDocument(cleanQuestion, doc);
-      const time = document.createElement("div");
-      time.className = "message-time";
-      time.textContent = "Local text lookup · No AI connected";
-      message.appendChild(time);
+      message.className = "message typing";
+      message.setAttribute("role", "status");
+      message.setAttribute("aria-label", "Klaro is thinking");
+      message.innerHTML = "<span></span><span></span><span></span>";
       replyRow.append(icon, message);
       messages.append(user, replyRow);
+
       document.getElementById("suggestions").hidden = true;
-      document.getElementById("chat-input").value = "";
-      messages.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      input.value = "";
+      chatBusy = true;
+      input.disabled = true;
+      if (sendButton) sendButton.disabled = true;
+      replyRow.scrollIntoView({ block: "nearest", behavior: "smooth" });
+
+      let reply;
+      try {
+        reply = await getAnswer(cleanQuestion, doc);
+      } catch (error) {
+        console.error("Could not get an answer.", error);
+        reply = { text: "Sorry, I couldn't answer that right now. Please try again.", source: "Error" };
+      }
+
+      // Swap the dots for the answer.
+      replyRow.classList.remove("thinking");
+      message.classList.remove("typing");
+      message.removeAttribute("role");
+      message.removeAttribute("aria-label");
+      message.textContent = reply.text;
+      const time = document.createElement("div");
+      time.className = "message-time";
+      time.textContent = reply.source;
+      message.appendChild(time);
+
+      chatBusy = false;
+      input.disabled = false;
+      if (sendButton) sendButton.disabled = false;
+      input.focus();
+      replyRow.scrollIntoView({ block: "nearest", behavior: "smooth" });
     }
     document.getElementById("chat-form").addEventListener("submit", event => {
       event.preventDefault();

@@ -577,3 +577,18 @@
 .entry-error { margin: 0; color: #b35447; font-size: 11px; line-height: 1.5; }
 .entry-note { margin: 10px 0 0; padding: 9px 11px; border-radius: 8px; background: var(--teal-soft); color: var(--ink); font-size: 11px; line-height: 1.5; }
 html[data-theme="dark"] .entry-error { color: #ff9f8d; }
+
+/* Chat "thinking" animation: three bouncing dots, and the assistant icon slowly turns. */
+.message.typing { display: inline-flex; align-items: center; gap: 5px; min-height: 36px; padding: 12px 14px; }
+.message.typing span { width: 7px; height: 7px; border-radius: 50%; background: var(--teal); opacity: .35; animation: klaro-typing 1.2s ease-in-out infinite; }
+.message.typing span:nth-child(2) { animation-delay: .15s; }
+.message.typing span:nth-child(3) { animation-delay: .3s; }
+.assistant-row.thinking .mini-assistant svg { animation: klaro-think 2.4s linear infinite; }
+@keyframes klaro-typing {
+  0%, 60%, 100% { transform: translateY(0); opacity: .35; }
+  30% { transform: translateY(-5px); opacity: 1; }
+}
+@keyframes klaro-think { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .message.typing span, .assistant-row.thinking .mini-assistant svg { animation: none; opacity: .7; }
+}
