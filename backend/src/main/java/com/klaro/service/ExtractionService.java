@@ -4,11 +4,12 @@ import com.klaro.dto.ExtractedDocument;
 
 /**
  * Reads an uploaded receipt or bill (image/PDF) and returns structured fields.
+ * Throws ExtractionException when the document can't be read.
  *
- * To implement the real version: create a new @Service class implementing this
- * interface, then delete StubExtractionService (two @Service beans of the same
- * type would conflict).
+ * The current implementation is LumenExtractionService (Lumen OCR + simple
+ * text rules). To swap it, write another @Service implementing this interface
+ * and delete LumenExtractionService (two would conflict).
  */
 public interface ExtractionService {
-    ExtractedDocument extract(byte[] file, String contentType);
+    ExtractedDocument extract(byte[] file, String contentType, String fileName);
 }

@@ -20,6 +20,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.klaro.dto.ExtractedDocument;
 import com.klaro.model.Receipt;
 import com.klaro.repository.ReceiptRepository;
+import com.klaro.service.ExtractionException;
 import com.klaro.service.ExtractionService;
 
 /**
@@ -77,8 +78,13 @@ public class ReceiptController {
         return ResponseEntity.noContent().build();
     }
 
+    // Reads the file with OCR and returns the fields for the user to check.
+    // Nothing is saved here; the front-end saves after the user confirms.
     @PostMapping("/extract")
     public ExtractedDocument extract(@RequestParam("file") MultipartFile file) throws IOException {
-        return extraction.extract(file.getBytes(), file.getContentType());
+        if (file.isEmpty()) {
+            throw new ExtractionException("The uploaded file is empty.");
+        }
+        return extraction.extract(file.getBytes(), file.getContentType(), file.getOriginalFilename());
     }
 }

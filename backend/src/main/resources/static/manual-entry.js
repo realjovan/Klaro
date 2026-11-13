@@ -1,6 +1,7 @@
-// Manual entry: a form for typing in a receipt or bill and saving it to the
-// backend (POST /api/receipts or POST /api/bills). Loaded after app.js so it
-// can reuse showToast().
+// Entry form: type in a receipt or bill, or check the fields read from an
+// uploaded document, then save it to the backend (POST /api/receipts or
+// POST /api/bills). Loaded after app.js so it can reuse showToast().
+// app.js opens it prefilled after an upload via window.openEntryForm(...).
 (() => {
   const dialog = document.getElementById("entry-dialog");
   const form = document.getElementById("entry-form");
@@ -8,7 +9,11 @@
   const billFields = document.getElementById("entry-bill-fields");
   const dateLabel = document.getElementById("entry-date-label");
   const errorBox = document.getElementById("entry-error");
+  const noteBox = document.getElementById("entry-note");
   const categorySelect = form.elements.category;
+
+  // Extra fields from an uploaded document (OCR text, file name), saved with the entry.
+  let extra = {};
 
   // Fill the category dropdown from the backend once, so the list is never hardcoded.
   async function loadCategories() {
@@ -35,16 +40,47 @@
     errorBox.hidden = !message;
   }
 
-  async function open() {
+  function showNote(message) {
+    noteBox.textContent = message;
+    noteBox.hidden = !message;
+  }
+
+  // Guess the bill type from the provider name, e.g. Meralco -> electricity.
+  function guessBillType(merchant) {
+    const name = (merchant || "").toLowerCase();
+    if (/meralco|electric|power/.test(name)) return "electricity";
+    if (/water|maynilad/.test(name)) return "water";
+    if (/pldt|globe|converge|smart|sky|internet|fiber/.test(name)) return "internet";
+    return "other";
+  }
+
+  // prefill: fields read from a document (see ExtractedDocument), or nothing for manual entry.
+  // note: a message shown at the top of the form.
+  async function open(prefill = null, note = "") {
     form.reset();
+    extra = {};
     form.elements.date.value = new Date().toLocaleDateString("en-CA"); // today, as yyyy-mm-dd
-    updateType();
     showError("");
     try {
       await loadCategories();
     } catch (error) {
       showError("Could not reach the server. Is the backend running?");
     }
+    if (prefill) {
+      const f = form.elements;
+      f.type.value = prefill.type === "BILL" ? "bill" : "receipt";
+      if (prefill.merchant) f.merchant.value = prefill.merchant;
+      if (prefill.date) f.date.value = prefill.date;
+      if (prefill.total != null) f.amount.value = prefill.total;
+      if (prefill.category && [...categorySelect.options].some(o => o.value === prefill.category)) {
+        f.category.value = prefill.category;
+      }
+      f.billType.value = guessBillType(prefill.merchant);
+      extra = { rawText: prefill.rawText, confidence: prefill.confidence,
+                fileName: prefill.fileName, contentType: prefill.contentType };
+    }
+    updateType();
+    showNote(note);
     dialog.showModal();
     form.elements.merchant.focus();
   }
@@ -56,11 +92,12 @@
     const f = form.elements;
     const isBill = f.type.value === "bill";
     const url = isBill ? "/api/bills" : "/api/receipts";
-    const body = isBill
+    const fields = isBill
       ? { merchant: f.merchant.value.trim(), type: f.billType.value, billingDueDate: f.date.value,
           amountToPay: f.amount.value, paid: f.paid.checked }
       : { merchant: f.merchant.value.trim(), receiptDate: f.date.value,
           amountPaid: f.amount.value, category: f.category.value };
+    const body = { ...extra, ...fields };
 
     try {
       const response = await fetch(url, {
@@ -84,7 +121,8 @@
     }
   }
 
-  document.getElementById("manual-entry-open").addEventListener("click", open);
+  window.openEntryForm = open;
+  document.getElementById("manual-entry-open").addEventListener("click", () => open());
   document.getElementById("entry-close").addEventListener("click", () => dialog.close());
   document.getElementById("entry-cancel").addEventListener("click", () => dialog.close());
   form.elements.type.addEventListener("change", updateType);

@@ -390,9 +390,11 @@
 
     function classifyFile(file) {
       const extension = file.name.split(".").pop().toLocaleLowerCase();
-      const supported = file.type.startsWith("image/") || file.type === "application/pdf" || (file.type === "text/plain" || extension === "txt");
-      if (!supported) throw new Error("Choose an image, PDF, or plain-text file.");
-      if (file.size > 20 * 1024 * 1024) throw new Error("File is too large. The limit is 20 MB.");
+      // The types Lumen OCR can read.
+      const supported = ["image/png", "image/jpeg", "image/webp", "image/tiff", "application/pdf"].includes(file.type)
+        || ["png", "jpg", "jpeg", "webp", "tif", "tiff", "pdf"].includes(extension);
+      if (!supported) throw new Error("Choose a photo (PNG, JPEG, WebP, TIFF) or a PDF.");
+      if (file.size > 10 * 1024 * 1024) throw new Error("File is too large. The limit is 10 MB.");
     }
 
     function setView(view, addHistoryEntry) {
@@ -448,33 +450,40 @@
       setView(view, false);
     });
 
+    // Upload flow: send the file to the backend, which reads it with Lumen OCR
+    // (POST /api/receipts/extract), then open the entry form prefilled so the
+    // user can check the fields before saving. If reading fails, the form opens
+    // empty for manual entry. One file at a time.
     async function addFiles(files) {
       await appReady;
-      for (const file of files) {
-        try {
-          classifyFile(file);
-          const text = file.type === "text/plain" || file.name.toLocaleLowerCase().endsWith(".txt") ? await file.text() : "";
-          const category = inferCategory(file.name);
-          const doc = {
-            id: crypto.randomUUID(), title: file.name, category, date: new Date().toISOString().slice(0, 10),
-            kind: `${category} · Added today`, kindLabel: category, text, file,
-            sample: false, reviewed: Boolean(text), isSaved: false
-          };
-          await saveDocument(doc);
-          documents.push(doc);
-          activeDocument = doc.id;
-          document.getElementById("document-search").value = "";
-          document.getElementById("category-filter").value = "";
-          setView("All documents", true);
-          showToast(text
-            ? "Text file added. Review and correct the extracted text before relying on it."
-            : "File saved on this device. Lumen OCR is not connected; add or paste text below to use the local helper.");
-        } catch (error) {
-          console.error("Could not add document.", error);
-          showToast(error instanceof Error ? error.message : "Could not save this file.");
-        }
-      }
+      const file = files[0];
       fileInput.value = "";
+      if (!file) return;
+      try {
+        classifyFile(file);
+      } catch (error) {
+        showToast(error.message);
+        return;
+      }
+      document.body.style.cursor = "progress";
+      showToast("Reading your document… this can take a few seconds.");
+      try {
+        const upload = new FormData();
+        upload.append("file", file);
+        const response = await fetch("/api/receipts/extract", { method: "POST", body: upload });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          window.openEntryForm(null, `${data.error || "Could not read this document."} Please enter the details yourself.`);
+          return;
+        }
+        window.openEntryForm({ ...data, fileName: file.name, contentType: file.type },
+          "We read these details from your document. Check each one before saving.");
+      } catch (error) {
+        console.error("Could not read the document.", error);
+        window.openEntryForm(null, "Could not reach the server to read this document. Please enter the details yourself.");
+      } finally {
+        document.body.style.cursor = "";
+      }
     }
 
     fileInput.addEventListener("change", () => {
@@ -727,7 +736,7 @@
         showToast("Could not delete the local library. Please try again.");
       }
     });
-    document.getElementById("file-input").accept = "image/*,.pdf,application/pdf,.txt,text/plain";
+    document.getElementById("file-input").accept = "image/png,image/jpeg,image/webp,image/tiff,application/pdf,.pdf";
     window.addEventListener("beforeunload", event => {
       if (!document.getElementById("ocr-text").readOnly) {
         event.preventDefault();
