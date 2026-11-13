@@ -231,6 +231,27 @@ Account holder: Maria Reyes, Quezon City</textarea>
               <option value="other">Other</option>
             </select>
           </label>
+          <div class="entry-row">
+            <label>Billing period start
+              <input name="periodStart" type="date">
+            </label>
+            <label>Billing period end
+              <input name="periodEnd" type="date">
+            </label>
+          </div>
+          <div class="entry-row">
+            <label>Consumption
+              <input name="usageAmount" type="number" min="0" step="0.001" inputmode="decimal" placeholder="Optional">
+            </label>
+            <label>Unit
+              <select name="usageUnit">
+                <option value="">None</option>
+                <option value="kWh">kWh</option>
+                <option value="m3">m³</option>
+                <option value="GB">GB</option>
+              </select>
+            </label>
+          </div>
           <label class="entry-check"><input name="paid" type="checkbox"> Already paid</label>
         </fieldset>
         <p class="entry-error" id="entry-error" role="alert" hidden></p>

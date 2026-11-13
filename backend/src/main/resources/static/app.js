@@ -168,7 +168,7 @@
         name.textContent = doc.title;
         const meta = document.createElement("span");
         meta.className = "document-meta";
-        meta.textContent = `${doc.category} · ${new Date(`${doc.date}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`;
+        meta.textContent = `${doc.category} · ${doc.datePrefix || ""}${new Date(`${doc.date}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`;
         main.append(name, meta);
         const status = document.createElement("span");
         status.className = `doc-status${doc.reviewed ? "" : " pending"}`;
@@ -181,7 +181,7 @@
 
     function updateDocumentLabel(doc) {
       document.getElementById("detail-title").textContent = doc ? doc.title : "No document selected";
-      document.getElementById("detail-kind").textContent = doc ? `${doc.category} · Added ${new Date(`${doc.date}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" })}` : "Add a document to get started";
+      document.getElementById("detail-kind").textContent = doc ? `${doc.category} · Added ${new Date(`${doc.addedDate || doc.date}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" })}` : "Add a document to get started";
       document.getElementById("chat-document").textContent = doc ? doc.title : "No document selected";
       document.getElementById("ocr-text").value = doc ? doc.text : "";
       document.getElementById("ocr-text").readOnly = true;
@@ -319,11 +319,15 @@
     const peso = amount => `₱${Number(amount).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     const categoryLabel = name => name ? name.charAt(0) + name.slice(1).toLowerCase() : "Other"; // FOOD -> Food
 
+    // createdAt is the moment the record was saved (UTC); show it as a local date.
+    const addedDate = createdAt => createdAt ? new Date(createdAt).toLocaleDateString("en-CA") : "";
+
     function receiptToDocument(r) {
       const category = categoryLabel(r.category);
       return {
         id: `receipt-${r.id}`, apiPath: `/api/receipts/${r.id}`,
-        title: r.merchant, category, kindLabel: category, date: r.receiptDate || (r.createdAt || "").slice(0, 10),
+        title: r.merchant, category, kindLabel: category, addedDate: addedDate(r.createdAt),
+        date: r.receiptDate || addedDate(r.createdAt),
         text: [`Merchant: ${r.merchant}`, `Date: ${r.receiptDate}`, `Amount paid: ${peso(r.amountPaid)}`, `Category: ${category}`, r.rawText || ""]
           .filter(Boolean).join("\n"),
         reviewed: !r.needsReview, isSaved: false, sample: false
@@ -333,8 +337,11 @@
     function billToDocument(b) {
       return {
         id: `bill-${b.id}`, apiPath: `/api/bills/${b.id}`,
-        title: b.merchant, category: "Utility bill", kindLabel: "Utility bill", date: b.billingDueDate || (b.createdAt || "").slice(0, 10),
+        title: b.merchant, category: "Utility bill", kindLabel: "Utility bill", addedDate: addedDate(b.createdAt),
+        date: b.billingDueDate || addedDate(b.createdAt), datePrefix: b.billingDueDate ? "Due " : "",
         text: [`Provider: ${b.merchant}`, `Bill type: ${b.type || "—"}`, `Due date: ${b.billingDueDate}`, `Amount due: ${peso(b.amountToPay)}`,
+          b.billingPeriodStart || b.billingPeriodEnd ? `Billing period: ${b.billingPeriodStart || "?"} to ${b.billingPeriodEnd || "?"}` : "",
+          b.usageAmount != null ? `Consumption: ${b.usageAmount} ${b.usageUnit || ""}`.trim() : "",
           `Status: ${b.paid ? "Paid" : "Unpaid"}`, b.rawText || ""].filter(Boolean).join("\n"),
         reviewed: !b.needsReview, isSaved: false, sample: false
       };

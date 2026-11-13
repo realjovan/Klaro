@@ -14,6 +14,23 @@
 
   // Extra fields from an uploaded document (OCR text, file name), saved with the entry.
   let extra = {};
+  // True while the date field still holds our automatic default (not typed or read from a file).
+  let dateIsDefault = true;
+
+  const today = () => new Date().toLocaleDateString("en-CA"); // yyyy-mm-dd, local time
+
+  // Receipts default to today's date. A bill's due date is never "today" by
+  // default: it comes from the document or the user types it.
+  function applyDefaultDate() {
+    if (!dateIsDefault) return;
+    form.elements.date.value = form.elements.type.value === "bill" ? "" : today();
+  }
+
+  // Suggest a consumption unit from the bill type, unless the user picked one.
+  function suggestUnit() {
+    const units = { electricity: "kWh", water: "m3", internet: "GB" };
+    if (!form.elements.usageUnit.value) form.elements.usageUnit.value = units[form.elements.billType.value] || "";
+  }
 
   // Fill the category dropdown from the backend once, so the list is never hardcoded.
   async function loadCategories() {
@@ -33,6 +50,8 @@
     receiptFields.hidden = receiptFields.disabled = isBill;
     billFields.hidden = billFields.disabled = !isBill;
     dateLabel.textContent = isBill ? "Due date" : "Date";
+    applyDefaultDate();
+    if (isBill) suggestUnit();
   }
 
   function showError(message) {
@@ -59,7 +78,7 @@
   async function open(prefill = null, note = "") {
     form.reset();
     extra = {};
-    form.elements.date.value = new Date().toLocaleDateString("en-CA"); // today, as yyyy-mm-dd
+    dateIsDefault = true;
     showError("");
     try {
       await loadCategories();
@@ -70,7 +89,10 @@
       const f = form.elements;
       f.type.value = prefill.type === "BILL" ? "bill" : "receipt";
       if (prefill.merchant) f.merchant.value = prefill.merchant;
-      if (prefill.date) f.date.value = prefill.date;
+      if (prefill.date) {
+        f.date.value = prefill.date;
+        dateIsDefault = false;
+      }
       if (prefill.total != null) f.amount.value = prefill.total;
       if (prefill.category && [...categorySelect.options].some(o => o.value === prefill.category)) {
         f.category.value = prefill.category;
@@ -92,9 +114,12 @@
     const f = form.elements;
     const isBill = f.type.value === "bill";
     const url = isBill ? "/api/bills" : "/api/receipts";
+    const orNull = value => value === "" ? null : value; // empty optional fields are sent as null
     const fields = isBill
       ? { merchant: f.merchant.value.trim(), type: f.billType.value, billingDueDate: f.date.value,
-          amountToPay: f.amount.value, paid: f.paid.checked }
+          amountToPay: f.amount.value, paid: f.paid.checked,
+          billingPeriodStart: orNull(f.periodStart.value), billingPeriodEnd: orNull(f.periodEnd.value),
+          usageAmount: orNull(f.usageAmount.value), usageUnit: f.usageAmount.value ? orNull(f.usageUnit.value) : null }
       : { merchant: f.merchant.value.trim(), receiptDate: f.date.value,
           amountPaid: f.amount.value, category: f.category.value };
     const body = { ...extra, ...fields };
@@ -126,5 +151,10 @@
   document.getElementById("entry-close").addEventListener("click", () => dialog.close());
   document.getElementById("entry-cancel").addEventListener("click", () => dialog.close());
   form.elements.type.addEventListener("change", updateType);
+  form.elements.date.addEventListener("input", () => { dateIsDefault = false; });
+  form.elements.billType.addEventListener("change", () => {
+    form.elements.usageUnit.value = "";
+    suggestUnit();
+  });
   form.addEventListener("submit", save);
 })();

@@ -186,16 +186,19 @@ public final class ReceiptTextParser {
         return last;
     }
 
-    // For bills, prefer a date on a row that mentions "due".
-    private static LocalDate findDate(List<String> rows, boolean preferDue) {
-        if (preferDue) {
-            for (String row : rows) {
-                String lower = row.toLowerCase(Locale.ROOT);
-                if (lower.contains("due")) {
-                    LocalDate date = findDateIn(lower);
-                    if (date != null) return date;
-                }
+    // For bills, only a date on (or right after) a row mentioning "due" counts as
+    // the due date. Other dates on a bill (statement date, billing period) are
+    // not the due date, so the field is left empty for the user instead.
+    private static LocalDate findDate(List<String> rows, boolean isBill) {
+        if (isBill) {
+            for (int i = 0; i < rows.size(); i++) {
+                String lower = rows.get(i).toLowerCase(Locale.ROOT);
+                if (!lower.contains("due")) continue;
+                LocalDate date = findDateIn(lower);
+                if (date == null && i + 1 < rows.size()) date = findDateIn(rows.get(i + 1).toLowerCase(Locale.ROOT));
+                if (date != null) return date;
             }
+            return null;
         }
         for (String row : rows) {
             LocalDate date = findDateIn(row.toLowerCase(Locale.ROOT));

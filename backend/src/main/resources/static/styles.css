@@ -535,6 +535,7 @@
 .entry-form label { display: grid; gap: 5px; font-size: 11px; font-weight: 650; }
 .entry-form input:not([type="checkbox"]), .entry-form select { padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); color: var(--ink); font-size: 12px; }
 .entry-form .entry-check { display: flex; gap: 8px; align-items: center; }
+.entry-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .entry-error { margin: 0; color: #b35447; font-size: 11px; line-height: 1.5; }
 .entry-note { margin: 10px 0 0; padding: 9px 11px; border-radius: 8px; background: var(--teal-soft); color: var(--ink); font-size: 11px; line-height: 1.5; }
 html[data-theme="dark"] .entry-error { color: #ff9f8d; }
