@@ -121,7 +121,7 @@
           billingPeriodStart: orNull(f.periodStart.value), billingPeriodEnd: orNull(f.periodEnd.value),
           usageAmount: orNull(f.usageAmount.value), usageUnit: f.usageAmount.value ? orNull(f.usageUnit.value) : null }
       : { merchant: f.merchant.value.trim(), receiptDate: f.date.value,
-          amountPaid: f.amount.value, category: f.category.value };
+          amountPaid: f.amount.value, category: f.category.value, orNumber: orNull(f.orNumber.value.trim()) };
     const body = { ...extra, ...fields };
 
     try {

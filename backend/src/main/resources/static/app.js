@@ -328,7 +328,8 @@
         id: `receipt-${r.id}`, apiPath: `/api/receipts/${r.id}`,
         title: r.merchant, category, kindLabel: category, addedDate: addedDate(r.createdAt),
         date: r.receiptDate || addedDate(r.createdAt),
-        text: [`Merchant: ${r.merchant}`, `Date: ${r.receiptDate}`, `Amount paid: ${peso(r.amountPaid)}`, `Category: ${category}`, r.rawText || ""]
+        text: [`Merchant: ${r.merchant}`, `Date: ${r.receiptDate}`, `Amount paid: ${peso(r.amountPaid)}`, `Category: ${category}`,
+          r.orNumber ? `OR number: ${r.orNumber}` : "", r.rawText || ""]
           .filter(Boolean).join("\n"),
         reviewed: !r.needsReview, isSaved: false, sample: false
       };

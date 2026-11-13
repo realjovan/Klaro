@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -56,7 +57,9 @@ public class Receipt {
     // Exact moment the row was created (stored as timestamptz, in UTC).
     private Instant createdAt;
 
-    private String ORNumber;
+    // Official Receipt (OR) number printed on the receipt. Optional.
+    @Size(max = 50)
+    private String orNumber;
 
     // Runs automatically the first time the row is saved.
     @PrePersist
@@ -114,6 +117,10 @@ public class Receipt {
         return createdAt;
     }
 
+    public String getOrNumber() {
+        return orNumber;
+    }
+
     // Used by PUT /api/receipts/{id} so an update targets an existing row.
     public void setId(Long id) {
         this.id = id;
@@ -161,6 +168,10 @@ public class Receipt {
 
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public void setOrNumber(String orNumber) {
+        this.orNumber = orNumber == null || orNumber.isBlank() ? null : orNumber.trim();
     }
 
 }
