@@ -330,8 +330,7 @@ const visible = getVisibleDocuments();
         weekday: "long", month: "long", day: "numeric"
       });
       const hour = now.getHours();
-      document.getElementById("greeting-text").textContent =
-        `${hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"}, Maria`;
+      document.getElementById("greeting-text").textContent = "Hello, Maria";
       document.getElementById("greeting-icon").textContent = hour < 18 ? "☀️" : "🌙";
     }
 
