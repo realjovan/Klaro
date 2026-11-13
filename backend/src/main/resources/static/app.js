@@ -100,14 +100,20 @@ const viewRoutes = {Overview: "overview","All documents": "documents",Saved: "sa
     const removeDocument = id => databaseRequest("readwrite", store => store.delete(id));
 
     function updateOverview() {
-      document.getElementById("stat-documents").textContent = String(documents.length);
+      // Elements may be removed from the page by layout changes; skip any that are missing
+      // instead of crashing the whole app (a crash here used to stop uploads from working).
+      const setCount = (id, value) => {
+        const element = document.getElementById(id);
+        if (element) element.textContent = String(value);
+      };
       const reviewCount = documents.filter(doc => !doc.reviewed).length;
       const savedCount = documents.filter(doc => doc.isSaved).length;
-      document.getElementById("stat-review").textContent = String(reviewCount);
-      document.getElementById("stat-saved").textContent = String(savedCount);
-      document.getElementById("nav-count").textContent = String(documents.length);
-      document.getElementById("review-nav-count").textContent = String(reviewCount);
-      document.getElementById("saved-nav-count").textContent = String(savedCount);
+      setCount("stat-documents", documents.length);
+      setCount("stat-review", reviewCount);
+      setCount("stat-saved", savedCount);
+      setCount("nav-count", documents.length);
+      setCount("review-nav-count", reviewCount);
+      setCount("saved-nav-count", savedCount);
     }
 
     function getVisibleDocuments() {
@@ -418,262 +424,159 @@ const visible = getVisibleDocuments();
 
   updateCategoryFilter();
   renderApp();
+  // Tell the Overview analytics summary (in index.html) to refresh.
+  window.dispatchEvent(new Event("klaro:records-updated"));
 }
 
-function renderDetailedAnalytics() {
-  const receipts = analyticsRecords.receipts || [];
-  const bills = analyticsRecords.bills || [];
+// Detailed analytics page. The numbers come from the backend
+// (GET /api/analytics/overview?months=N), so the page, the Overview summary and
+// the chatbot all use the same calculations.
+const analyticsFormat = {
+  money: value => new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 2 }).format(Number(value) || 0),
+  // Short form for chart labels, e.g. ₱12K
+  compact: value => new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", notation: "compact", maximumFractionDigits: 1 }).format(Number(value) || 0),
+  number: (value, digits = 2) => new Intl.NumberFormat("en-PH", { maximumFractionDigits: digits }).format(Number(value) || 0),
+  // "2026-10" -> "Oct 2026"
+  month: key => new Date(`${key}-01T12:00:00`).toLocaleDateString("en-PH", { month: "short", year: "numeric" }),
+  unit: unit => ({ kwh: "kWh", m3: "m³", gb: "GB" })[String(unit || "").toLowerCase()] || unit || ""
+};
 
-  const money = value =>
-    new Intl.NumberFormat("en-PH", {
-      style: "currency",
-      currency: "PHP",
-      maximumFractionDigits: 2
-    }).format(value);
+let detailedAnalyticsRequest = 0;
 
-  const number = value =>
-    new Intl.NumberFormat("en-PH", {
-      maximumFractionDigits: 2
-    }).format(value);
-
+async function renderDetailedAnalytics() {
+  const fmt = analyticsFormat;
   const setText = (id, value) => {
     const element = document.getElementById(id);
     if (element) element.textContent = value;
   };
-
-  const parseDate = value => {
-    if (!value) return null;
-
-    const date = new Date(`${String(value).slice(0, 10)}T12:00:00`);
-
-    return Number.isNaN(date.getTime()) ? null : date;
+  const empty = (container, message) => {
+    if (!container) return;
+    const note = document.createElement("p");
+    note.className = "analytics-empty";
+    note.textContent = message;
+    container.replaceChildren(note);
   };
+  const chart = document.getElementById("detailed-monthly-chart");
+  const categoryContainer = document.getElementById("detailed-category-breakdown");
 
-  const monthKey = date =>
-    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-
-  const monthLabel = date =>
-    date.toLocaleDateString("en-PH", { month: "short", year: "numeric" });
-
-  // Convert backend records into a consistent analytics format.
-  const expenseRecords = [
-    ...receipts.map(receipt => ({
-      date: parseDate(receipt.receiptDate || receipt.createdAt),
-      amount: Number(receipt.amountPaid),
-      category: receipt.category
-        ? receipt.category.charAt(0) + receipt.category.slice(1).toLowerCase()
-        : "Other",
-      source: "Receipt"
-    })),
-
-    ...bills.map(bill => ({
-      // Prefer the billing period over the due date when available.
-      date: parseDate(
-        bill.billingPeriodEnd ||
-        bill.billingPeriodStart ||
-        bill.billingDueDate ||
-        bill.createdAt
-      ),
-      amount: Number(bill.amountToPay),
-      category: bill.type
-        ? bill.type.charAt(0).toUpperCase() + bill.type.slice(1).toLowerCase()
-        : "Utility bill",
-      source: "Bill"
-    }))
-  ].filter(record =>
-    record.date &&
-    Number.isFinite(record.amount) &&
-    record.amount > 0
-  );
-
-  // Show the most recent six calendar months.
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth() - 5, 1);
-
-  const filtered = expenseRecords.filter(record =>
-    record.date >= start &&
-    record.date <= now
-  );
+  const months = Number(document.getElementById("detailed-analytics-period")?.value || 6);
+  const request = ++detailedAnalyticsRequest;
+  let data;
+  try {
+    const response = await fetch(`/api/analytics/overview?months=${months}`);
+    if (!response.ok) throw new Error(`analytics returned ${response.status}`);
+    data = await response.json();
+  } catch (error) {
+    console.error("Could not load analytics.", error);
+    if (request === detailedAnalyticsRequest) {
+      empty(chart, "Could not load analytics. Is the backend running?");
+      empty(categoryContainer, "Could not load analytics.");
+    }
+    return;
+  }
+  if (request !== detailedAnalyticsRequest) return; // a newer request (another period) is on its way
 
   // Financial summary.
-  const total = filtered.reduce((sum, record) => sum + record.amount, 0);
-  const average = total / 6;
+  setText("detailed-total-expenses", fmt.money(data.totalExpenses));
+  setText("detailed-average-expenses",
+    data.averageMonthlyExpenses == null ? "—" : fmt.money(data.averageMonthlyExpenses));
+  setText("detailed-highest-month", data.highestMonth
+    ? `${fmt.month(data.highestMonth.month)} · ${fmt.money(data.highestMonth.total)}` : "—");
+  setText("detailed-lowest-month", data.lowestMonth
+    ? `${fmt.month(data.lowestMonth.month)} · ${fmt.money(data.lowestMonth.total)}` : "—");
 
-  setText("detailed-total-expenses", money(total));
-  setText("detailed-average-expenses", money(average));
-
-  // Monthly spending totals.
-  const monthlyTotals = [];
-
-  for (let i = 5; i >= 0; i--) {
-    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const key = monthKey(date);
-
-    const value = filtered
-      .filter(record => monthKey(record.date) === key)
-      .reduce((sum, record) => sum + record.amount, 0);
-
-    monthlyTotals.push({
-      key,
-      label: monthLabel(date),
-      value
-    });
-  }
-
-  const monthsWithExpenses = monthlyTotals.filter(month => month.value > 0);
-
-  const highest = monthsWithExpenses.length
-    ? monthsWithExpenses.reduce((a, b) => a.value > b.value ? a : b)
-    : null;
-
-  const lowest = monthsWithExpenses.length
-    ? monthsWithExpenses.reduce((a, b) => a.value < b.value ? a : b)
-    : null;
-
-  setText(
-    "detailed-highest-month",
-    highest ? `${highest.label} · ${money(highest.value)}` : "—"
-  );
-
-  setText(
-    "detailed-lowest-month",
-    lowest ? `${lowest.label} · ${money(lowest.value)}` : "—"
-  );
-
-  // Monthly spending chart.
-  const chart = document.getElementById("detailed-monthly-chart");
-
+  // Monthly spending chart: one bar per month.
   if (chart) {
-    chart.replaceChildren();
-
-    const maxValue = Math.max(
-      ...monthlyTotals.map(month => month.value),
-      0
-    );
-
+    const maxValue = Math.max(0, ...data.byMonth.map(m => Number(m.total)));
     if (maxValue === 0) {
-      const empty = document.createElement("p");
-      empty.className = "analytics-empty";
-      empty.textContent = "No expense records for the last six months.";
-      chart.append(empty);
+      empty(chart, "No expense records for this period.");
     } else {
-      monthlyTotals.forEach(month => {
+      chart.replaceChildren(...data.byMonth.map(m => {
+        const total = Number(m.total);
         const column = document.createElement("div");
         column.className = "analytics-bar-column";
+        column.title = `${fmt.month(m.month)}: ${fmt.money(total)} (receipts ${fmt.money(m.receipts)}, bills ${fmt.money(m.bills)})`;
 
         const value = document.createElement("span");
         value.className = "analytics-bar-value";
-        value.textContent = month.value ? money(month.value) : "—";
+        value.textContent = total ? fmt.compact(total) : "—";
 
         const track = document.createElement("div");
         track.className = "analytics-bar-track";
-
         const bar = document.createElement("div");
         bar.className = "analytics-bar";
-        bar.style.height = month.value
-          ? `${Math.max(4, month.value / maxValue * 100)}%`
-          : "0%";
+        bar.style.height = total ? `${Math.max(4, total / maxValue * 100)}%` : "0%";
+        track.append(bar);
 
         const label = document.createElement("span");
         label.className = "analytics-bar-month";
-        label.textContent = month.label;
+        label.textContent = fmt.month(m.month).split(" ")[0];
 
-        track.append(bar);
         column.append(value, track, label);
-        chart.append(column);
-      });
+        return column;
+      }));
     }
   }
 
-  // Spending by category.
-  const categoryContainer = document.getElementById(
-    "detailed-category-breakdown"
-  );
-
+  // Spending by category, with a bar showing each category's share.
   if (categoryContainer) {
-    categoryContainer.replaceChildren();
-
-    const categories = new Map();
-
-    filtered.forEach(record => {
-      categories.set(
-        record.category,
-        (categories.get(record.category) || 0) + record.amount
-      );
-    });
-
-    const sortedCategories = [...categories.entries()]
-      .sort((a, b) => b[1] - a[1]);
-
-    if (!sortedCategories.length) {
-      const empty = document.createElement("p");
-      empty.className = "analytics-empty";
-      empty.textContent = "No category data available yet.";
-      categoryContainer.append(empty);
+    if (!data.byCategory.length) {
+      empty(categoryContainer, "No category data available yet.");
     } else {
-      sortedCategories.forEach(([category, amount]) => {
+      categoryContainer.replaceChildren(...data.byCategory.map(c => {
         const row = document.createElement("div");
         row.className = "analytics-category-row";
 
         const label = document.createElement("span");
-        label.textContent = category;
-
+        label.textContent = categoryLabel(c.category);
         const value = document.createElement("strong");
-        value.textContent = money(amount);
-
+        value.textContent = fmt.money(c.total);
         const percentage = document.createElement("span");
         percentage.className = "analytics-category-percentage";
-        percentage.textContent = `${number(amount / total * 100)}%`;
+        percentage.textContent = `${fmt.number(c.sharePercent, 1)}%`;
 
-        row.append(label, value, percentage);
-        categoryContainer.append(row);
-      });
+        const meter = document.createElement("span");
+        meter.className = "analytics-category-meter";
+        const fill = document.createElement("span");
+        fill.style.width = `${Math.min(100, Number(c.sharePercent))}%`;
+        meter.append(fill);
+
+        row.append(label, value, percentage, meter);
+        return row;
+      }));
     }
   }
 
-  // Utility consumption totals.
-  const utilityTypes = [
-    { type: "electricity", id: "detailed-electricity", unit: "kWh" },
-    { type: "water", id: "detailed-water", unit: "m³" },
-    { type: "internet", id: "detailed-internet", unit: "GB" }
-  ];
+  // Utility consumption: average per month, with the total and latest change underneath.
+  [["electricity", "detailed-electricity"], ["water", "detailed-water"], ["internet", "detailed-internet"]]
+    .forEach(([type, id]) => {
+      const element = document.getElementById(id);
+      if (!element) return;
+      const stats = data.utilities.find(u => u.type === type);
+      const main = document.createElement("div");
+      main.className = "analytics-value";
+      const note = document.createElement("span");
+      note.className = "analytics-utility-note";
 
-  utilityTypes.forEach(utility => {
-    const readings = bills.filter(bill => {
-      const type = String(bill.type || "").toLowerCase();
-      const date = parseDate(
-        bill.billingPeriodEnd ||
-        bill.billingPeriodStart ||
-        bill.billingDueDate ||
-        bill.createdAt
-      );
-
-      const usage = Number(bill.usageAmount);
-      const unit = String(bill.usageUnit || "").toLowerCase()
-        .replace("³", "3");
-
-      return type.includes(utility.type) &&
-        date &&
-        date >= start &&
-        date <= now &&
-        Number.isFinite(usage) &&
-        usage >= 0 &&
-        unit === utility.unit.toLowerCase().replace("³", "3");
+      if (stats && stats.averageMonthlyUsage != null) {
+        const unit = fmt.unit(stats.usageUnit);
+        main.textContent = `${fmt.number(stats.averageMonthlyUsage)} ${unit} / month`;
+        const change = stats.usageChangePercent == null ? ""
+          : ` · latest ${stats.usageChangePercent > 0 ? "+" : ""}${fmt.number(stats.usageChangePercent, 1)}%`;
+        note.textContent = `Total ${fmt.number(stats.totalUsage)} ${unit} over ${stats.monthsWithReadings} ` +
+          `month${stats.monthsWithReadings === 1 ? "" : "s"} · ${fmt.money(stats.averageMonthlyCost)} per bill${change}`;
+      } else if (stats) {
+        main.textContent = `${fmt.money(stats.averageMonthlyCost)} / month`;
+        note.textContent = "Average bill · no consumption readings entered";
+      } else {
+        main.textContent = "—";
+        note.textContent = "No bills for this period";
+      }
+      element.replaceChildren(main, note);
     });
-
-    const totalUsage = readings.reduce(
-      (sum, bill) => sum + Number(bill.usageAmount),
-      0
-    );
-
-    setText(
-      utility.id,
-      readings.length
-        ? `${number(totalUsage)} ${utility.unit}`
-        : "—"
-    );
-  });
 }
+
+document.getElementById("detailed-analytics-period")?.addEventListener("change", renderDetailedAnalytics);
 
     async function initializeApp() {
       try {
@@ -768,7 +671,8 @@ function renderDetailedAnalytics() {
     // user can check the fields before saving. If reading fails, the form opens
     // empty for manual entry. One file at a time.
     async function addFiles(files) {
-      await appReady;
+      // Wait for startup, but still allow uploads if loading the document list failed.
+      await Promise.resolve(appReady).catch(() => {});
       const file = files[0];
       fileInput.value = "";
       if (!file) return;

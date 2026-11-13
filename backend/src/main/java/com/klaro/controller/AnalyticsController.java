@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.klaro.dto.AnalyticsOverview;
 import com.klaro.dto.AnalyticsSummary;
 import com.klaro.dto.BudgetStatus;
 import com.klaro.dto.CategoryTotal;
@@ -26,6 +27,7 @@ import com.klaro.service.AnalyticsService;
  * the DTO records in com.klaro.dto.
  *
  *   GET /api/analytics/summary                          headline numbers for the Overview
+ *   GET /api/analytics/overview?months=6                everything the analytics views show for a period
  *   GET /api/analytics/spending/by-category?month=2026-10   per category (default: this month)
  *   GET /api/analytics/spending/by-month?months=6       per month, oldest first
  *   GET /api/analytics/budgets?month=2026-10            budget vs spending (default: this month)
@@ -47,6 +49,11 @@ public class AnalyticsController {
     @GetMapping("/summary")
     public AnalyticsSummary summary() {
         return analytics.summary();
+    }
+
+    @GetMapping("/overview")
+    public AnalyticsOverview overview(@RequestParam(defaultValue = "6") int months) {
+        return analytics.overview(clamp(months, 1, 24));
     }
 
     @GetMapping("/spending/by-category")

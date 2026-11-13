@@ -3,6 +3,7 @@ package com.klaro.service;
 import java.time.YearMonth;
 import java.util.List;
 
+import com.klaro.dto.AnalyticsOverview;
 import com.klaro.dto.AnalyticsSummary;
 import com.klaro.dto.BudgetStatus;
 import com.klaro.dto.CategoryTotal;
@@ -21,6 +22,9 @@ public interface AnalyticsService {
 
     /** Headline numbers for the current month (Overview page). */
     AnalyticsSummary summary();
+
+    /** Everything the analytics views show for the last {@code months} months. */
+    AnalyticsOverview overview(int months);
 
     /** Spending per category in a month, largest first. */
     List<CategoryTotal> spendingByCategory(YearMonth month);

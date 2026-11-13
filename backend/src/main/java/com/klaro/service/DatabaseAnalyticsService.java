@@ -24,6 +24,7 @@ import java.util.stream.Stream;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import com.klaro.dto.AnalyticsOverview;
 import com.klaro.dto.AnalyticsSummary;
 import com.klaro.dto.BudgetStatus;
 import com.klaro.dto.CategoryTotal;
@@ -151,16 +152,21 @@ public class DatabaseAnalyticsService implements AnalyticsService {
     }
 
     private List<CategoryTotal> categoryTotals(Data data, YearMonth month) {
+        return categoryTotals(data, month, month);
+    }
+
+    // Spending per category for the months from..to (inclusive).
+    private List<CategoryTotal> categoryTotals(Data data, YearMonth from, YearMonth to) {
         Map<Category, BigDecimal> totals = new EnumMap<>(Category.class);
         Map<Category, Integer> counts = new EnumMap<>(Category.class);
         for (Receipt r : data.receipts()) {
-            if (!YearMonth.from(receiptDate(r)).equals(month)) continue;
+            if (!within(YearMonth.from(receiptDate(r)), from, to)) continue;
             Category category = r.getCategory() == null ? Category.OTHER : r.getCategory();
             totals.merge(category, amount(r.getAmountPaid()), BigDecimal::add);
             counts.merge(category, 1, Integer::sum);
         }
         for (Bill b : data.bills()) {
-            if (!YearMonth.from(dueDate(b)).equals(month)) continue;
+            if (!within(YearMonth.from(dueDate(b)), from, to)) continue;
             totals.merge(Category.UTILITIES, amount(b.getAmountToPay()), BigDecimal::add);
             counts.merge(Category.UTILITIES, 1, Integer::sum);
         }
@@ -174,14 +180,66 @@ public class DatabaseAnalyticsService implements AnalyticsService {
 
     @Override
     public List<MonthlySpending> spendingByMonth(int months) {
-        Data data = load();
-        return window(months).stream()
+        return monthlySpending(load(), window(months));
+    }
+
+    private List<MonthlySpending> monthlySpending(Data data, List<YearMonth> months) {
+        return months.stream()
                 .map(m -> {
                     BigDecimal receipts = receiptTotal(data.receipts(), m);
                     BigDecimal bills = billTotal(data.bills(), m);
                     return new MonthlySpending(m.toString(), money(receipts), money(bills), money(receipts.add(bills)));
                 })
                 .toList();
+    }
+
+    // ------------------------------------------------- overview for a period
+
+    @Override
+    public AnalyticsOverview overview(int months) {
+        Data data = load();
+        List<YearMonth> window = window(months);
+        YearMonth from = window.get(0);
+        YearMonth to = window.get(window.size() - 1);
+
+        List<MonthlySpending> byMonth = monthlySpending(data, window);
+        BigDecimal receiptsTotal = sum(byMonth.stream().map(MonthlySpending::receipts));
+        BigDecimal billsTotal = sum(byMonth.stream().map(MonthlySpending::bills));
+        BigDecimal total = receiptsTotal.add(billsTotal);
+        int recordCount = (int) (data.receipts().stream().filter(r -> within(YearMonth.from(receiptDate(r)), from, to)).count()
+                + data.bills().stream().filter(b -> within(YearMonth.from(dueDate(b)), from, to)).count());
+
+        // Average over the period, but not over months before the user's first
+        // record, so someone who started last month isn't averaged over 6 months.
+        YearMonth first = firstRecordMonth(data);
+        int monthsCounted = first == null ? 0
+                : (int) window.stream().filter(m -> !m.isBefore(first)).count();
+        BigDecimal average = monthsCounted == 0 || recordCount == 0 ? null
+                : total.divide(BigDecimal.valueOf(monthsCounted), 2, RoundingMode.HALF_UP);
+
+        List<MonthlySpending> withSpending = byMonth.stream().filter(m -> m.total().signum() > 0).toList();
+        MonthlyTotal highest = withSpending.stream()
+                .max(Comparator.comparing(MonthlySpending::total))
+                .map(m -> new MonthlyTotal(m.month(), m.total())).orElse(null);
+        MonthlyTotal lowest = withSpending.stream()
+                .min(Comparator.comparing(MonthlySpending::total))
+                .map(m -> new MonthlyTotal(m.month(), m.total())).orElse(null);
+
+        return new AnalyticsOverview(window.size(), from.toString(), to.toString(),
+                money(total), receiptsTotal, billsTotal, recordCount, monthsCounted, average,
+                highest, lowest, byMonth, categoryTotals(data, from, to), utilities(data, window));
+    }
+
+    private YearMonth firstRecordMonth(Data data) {
+        return Stream.concat(
+                        data.receipts().stream().map(r -> YearMonth.from(receiptDate(r))),
+                        data.bills().stream().map(b -> YearMonth.from(dueDate(b))))
+                .min(Comparator.naturalOrder())
+                .orElse(null);
+    }
+
+    private static boolean within(YearMonth month, YearMonth from, YearMonth to) {
+        return !month.isBefore(from) && !month.isAfter(to);
     }
 
     @Override
@@ -211,13 +269,16 @@ public class DatabaseAnalyticsService implements AnalyticsService {
 
     @Override
     public List<UtilityStats> utilities(int months) {
-        List<YearMonth> window = window(months);
+        return utilities(load(), window(months));
+    }
+
+    private List<UtilityStats> utilities(Data data, List<YearMonth> window) {
         YearMonth from = window.get(0);
+        YearMonth to = window.get(window.size() - 1);
 
         // Bills in the window, grouped by type ("electricity", "water", ...).
-        Map<String, List<Bill>> byType = load().bills().stream()
-                .filter(b -> !YearMonth.from(usageDate(b)).isBefore(from))
-                .filter(b -> !YearMonth.from(usageDate(b)).isAfter(window.get(window.size() - 1)))
+        Map<String, List<Bill>> byType = data.bills().stream()
+                .filter(b -> within(YearMonth.from(usageDate(b)), from, to))
                 .collect(Collectors.groupingBy(this::typeOf, TreeMap::new, Collectors.toList()));
 
         List<UtilityStats> result = new ArrayList<>();
@@ -274,6 +335,8 @@ public class DatabaseAnalyticsService implements AnalyticsService {
                 latestUsage == null ? null : latestUsage.setScale(2, RoundingMode.HALF_UP),
                 usageByMonth.isEmpty() ? null : average(usageByMonth.values(), 2),
                 latestUsage == null || previousUsage == null ? null : changePercent(latestUsage, previousUsage.getValue()),
+                usageByMonth.isEmpty() ? null : totalUsage.setScale(2, RoundingMode.HALF_UP),
+                usageByMonth.size(),
                 usageByMonth.isEmpty() ? null : unit,
                 totalUsage.signum() > 0 ? costWithUsage.divide(totalUsage, 2, RoundingMode.HALF_UP) : null,
                 series);

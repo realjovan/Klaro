@@ -403,68 +403,61 @@ Account holder: Maria Reyes, Quezon City</textarea>
   <script src="manual-entry.js"></script>
   
 <script id="klaro-home-analytics-script">
+// Overview analytics summary. The numbers come from the backend
+// (GET /api/analytics/overview?months=N). Refreshes when the period changes and
+// after records are saved or deleted (app.js fires "klaro:records-updated").
 (() => {
   const root = document.getElementById('homepage-analytics');
   if (!root) return;
   const $ = id => document.getElementById(id);
-  const money = value => new Intl.NumberFormat('en-PH',{style:'currency',currency:'PHP',maximumFractionDigits:2}).format(value);
-  const number = (value, digits=1) => new Intl.NumberFormat('en-PH',{maximumFractionDigits:digits}).format(value);
-  let records = [];
-  const getDate = r => { const raw = r.date || r.billDate || r.periodEnd || r.billingDate; const d = raw ? new Date(`${String(raw).slice(0,10)}T12:00:00`) : null; return d && !Number.isNaN(d.getTime()) ? d : null; };
-  const getAmount = r => { const n = Number(r.amount ?? r.totalAmount ?? r.total); return Number.isFinite(n) && n > 0 ? n : null; };
-  const getType = r => String(r.billType || r.utilityType || r.category || '').toLowerCase();
-  const getUsage = r => { const n = Number(r.usageAmount ?? r.consumption ?? r.usage); return Number.isFinite(n) && n >= 0 && (r.usageAmount != null || r.consumption != null || r.usage != null) ? n : null; };
-  const getUnit = r => String(r.usageUnit || r.unit || '').toLowerCase();
-  const monthKey = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-  const setText = (id, value) => { const el=$(id); if(el) el.textContent=value; };
+  const money = value => new Intl.NumberFormat('en-PH',{style:'currency',currency:'PHP',maximumFractionDigits:2}).format(Number(value) || 0);
+  const number = (value, digits=2) => new Intl.NumberFormat('en-PH',{maximumFractionDigits:digits}).format(Number(value) || 0);
+  const unitLabel = unit => ({kwh:'kWh', m3:'m³', gb:'GB'})[String(unit || '').toLowerCase()] || unit || '';
+  const setText = (id, value) => { const el = $(id); if (el) el.textContent = value; };
+  const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+  let latest = 0;
 
-  function readRecords() {
-    // Integration contract: expose saved receipt/bill objects as window.KlaroAnalytics.getRecords()
-    // or window.KlaroAnalytics.records. The record fields can match the manual-entry form names.
-
-    try {
-      const source = window.KlaroAnalytics;
-      if (source && typeof source.getRecords === 'function') records = source.getRecords() || [];
-      else if (source && Array.isArray(source.records)) records = source.records;
-      else if (Array.isArray(window.klaroAnalyticsRecords)) records = window.klaroAnalyticsRecords;
-      else records = [];
-    } catch (_) { records=[]; }
-    if (!Array.isArray(records)) records=[];
-    render();
-  }
-  function render() {
+  async function load() {
     const months = Number($('analytics-period').value || 6);
-    const now = new Date(); const start = new Date(now.getFullYear(),now.getMonth()-(months-1),1);
-    const valid = records.map(r=>({...r,_date:getDate(r),_amount:getAmount(r)})).filter(r=>r._date && r._date>=start && r._date<=new Date(now.getFullYear(),now.getMonth()+1,0,23,59,59));
-    const expenses = valid.filter(r=>r._amount !== null);
-    const total = expenses.reduce((s,r)=>s+r._amount,0);
-    setText('analytics-total-expenses',money(total));
-    setText('analytics-total-note',expenses.length ? `${expenses.length} recorded expense${expenses.length===1?'':'s'} in this period` : 'No expense records for this period yet');
-    const avg = expenses.length ? total/months : null;
-    setText('analytics-average-cost',avg===null?'—':money(avg));
-    setText('analytics-average-note',avg===null?'Average monthly cost · no data yet':`Average per month across ${months} month${months===1?'':'s'}`);
-const periodLabel = months === 1
-  ? 'This month'
-  : `Last ${months} months`;
+    const request = ++latest;
+    setText('analytics-financial-period', months === 1 ? 'This month' : `Last ${months} months`);
+    let data;
+    try {
+      const response = await fetch(`/api/analytics/overview?months=${months}`);
+      if (!response.ok) throw new Error(`analytics returned ${response.status}`);
+      data = await response.json();
+    } catch (error) {
+      console.error('Could not load the analytics summary.', error);
+      if (request === latest) setText('analytics-total-note', 'Could not load analytics. Is the backend running?');
+      return;
+    }
+    if (request !== latest) return; // a newer request (another period) is on its way
 
-setText('analytics-financial-period', periodLabel);
-    const utilities=[['electricity','analytics-electricity','kwh'],['water','analytics-water','m3'],['internet','analytics-internet','gb']];
-    utilities.forEach(([kind,id,unit])=>{
-      const readings=valid.filter(r=>getType(r).includes(kind) && getUsage(r)!==null && getUnit(r).replace('³','3')===unit);
-      const byMonth=new Map(); readings.forEach(r=>byMonth.set(monthKey(r._date),(byMonth.get(monthKey(r._date))||0)+getUsage(r)));
-      const vals=[...byMonth.values()];
-      const average=vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
-      setText(id,average===null?'—':`${number(average,2)} ${unit==='kwh'?'kWh':unit==='m3'?'m³':'GB'}`);
-      const card=$(id)?.closest('.analytics-utility'); if(card){const note=card.querySelector('.analytics-utility-unit'); if(note) note.textContent=average===null?'No consumption data yet':`Average across ${vals.length} month${vals.length===1?'':'s'} with readings`;}
+    setText('analytics-total-expenses', money(data.totalExpenses));
+    setText('analytics-total-note', data.recordCount
+      ? `${plural(data.recordCount, 'recorded expense')} in this period`
+      : 'No expense records for this period yet');
+
+    const average = data.averageMonthlyExpenses;
+    setText('analytics-average-cost', average == null ? '—' : money(average));
+    setText('analytics-average-note', average == null
+      ? 'Average monthly cost · no data yet'
+      : `Average per month across ${plural(data.monthsCounted, 'month')}`);
+
+    [['electricity','analytics-electricity'], ['water','analytics-water'], ['internet','analytics-internet']].forEach(([type, id]) => {
+      const stats = data.utilities.find(u => u.type === type);
+      const hasUsage = stats && stats.averageMonthlyUsage != null;
+      setText(id, hasUsage ? `${number(stats.averageMonthlyUsage)} ${unitLabel(stats.usageUnit)}` : '—');
+      const note = $(id)?.closest('.analytics-utility')?.querySelector('.analytics-utility-unit');
+      if (note) note.textContent = hasUsage
+        ? `Average across ${plural(stats.monthsWithReadings, 'month')} with readings`
+        : stats ? `No readings entered · average bill ${money(stats.averageMonthlyCost)}` : 'No consumption data yet';
     });
-    
-    const workspace=$('workspace'); if(workspace) root.hidden=workspace.dataset.view!=='Overview';
   }
-  $('analytics-period').addEventListener('change',render);
-  const workspace=$('workspace'); if(workspace){new MutationObserver(()=>{root.hidden=workspace.dataset.view!=='Overview';}).observe(workspace,{attributes:true,attributeFilter:['data-view']});}
-  window.addEventListener('klaro:records-updated',readRecords);
-  window.addEventListener('storage',readRecords);
-  readRecords();
+
+  $('analytics-period').addEventListener('change', load);
+  window.addEventListener('klaro:records-updated', load);
+  load();
 })();
 </script>
 

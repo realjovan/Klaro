@@ -9,7 +9,9 @@ import java.util.List;
  *
  * latest*            the most recent month with a bill
  * *ChangePercent     latest month compared with the month before it that had a bill; null if no earlier month
- * averageMonthly*    average over the months that had a bill
+ * averageMonthly*    average over the months that had a bill (usage: months that had a reading)
+ * totalUsage         all consumption in the period, in usageUnit
+ * monthsWithReadings months that had a consumption amount
  * averageCostPerUnit total cost / total consumption, e.g. pesos per kWh; null without consumption data
  * Usage fields are null when no bill of this type has a consumption amount.
  */
@@ -24,6 +26,8 @@ public record UtilityStats(
         BigDecimal latestUsage,
         BigDecimal averageMonthlyUsage,
         Double usageChangePercent,
+        BigDecimal totalUsage,
+        int monthsWithReadings,
         String usageUnit,
         BigDecimal averageCostPerUnit,
         List<MonthlyTotal> costByMonth) {
