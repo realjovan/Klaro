@@ -28,21 +28,33 @@ public class SeedData {
     @Bean
     CommandLineRunner seed(ReceiptRepository receipts, BillRepository bills, BudgetRepository budgets) {
         return args -> {
+            LocalDate today = LocalDate.now();
+            // Amounts vary a little per month (index 0 = this month) so trends aren't flat.
+            double[] factor = { 1.08, 0.94, 1.0 };
             if (receipts.count() == 0) {
+                Object[][] items = {
+                        { "SM Supermarket", 3, "1850.75", Category.FOOD },
+                        { "Jollibee", 9, "389.00", Category.FOOD },
+                        { "Shell", 12, "1500.00", Category.TRANSPORT },
+                        { "Mercury Drug", 18, "620.50", Category.HEALTH },
+                        { "Uniqlo", 22, "2490.00", Category.SHOPPING } };
                 for (int m = 0; m < 3; m++) {
-                    LocalDate base = LocalDate.now().minusMonths(m);
-                    receipts.save(receipt("SM Supermarket", base.withDayOfMonth(3), "1850.75", Category.FOOD));
-                    receipts.save(receipt("Jollibee", base.withDayOfMonth(9), "389.00", Category.FOOD));
-                    receipts.save(receipt("Shell", base.withDayOfMonth(12), "1500.00", Category.TRANSPORT));
-                    receipts.save(receipt("Mercury Drug", base.withDayOfMonth(18), "620.50", Category.HEALTH));
-                    receipts.save(receipt("Uniqlo", base.withDayOfMonth(22), "2490.00", Category.SHOPPING));
+                    LocalDate base = today.minusMonths(m);
+                    for (Object[] item : items) {
+                        LocalDate date = base.withDayOfMonth(Math.min((int) item[1], base.lengthOfMonth()));
+                        if (date.isAfter(today)) continue; // no receipts from the future
+                        receipts.save(receipt((String) item[0], date, scaled((String) item[2], factor[m]),
+                                (Category) item[3]));
+                    }
                 }
             }
             if (bills.count() == 0) {
                 for (int m = 0; m < 3; m++) {
-                    LocalDate base = LocalDate.now().minusMonths(m);
-                    bills.save(bill("Meralco", "electricity", base, "3250.00", "280", "kWh", m != 0));
-                    bills.save(bill("Manila Water", "water", base, "540.00", "18", "m3", m != 0));
+                    LocalDate base = today.minusMonths(m);
+                    bills.save(bill("Meralco", "electricity", base, scaled("3250.00", factor[m]),
+                            scaled("280", factor[m]), "kWh", m != 0));
+                    bills.save(bill("Manila Water", "water", base, scaled("540.00", factor[m]),
+                            scaled("18", factor[m]), "m3", m != 0));
                     bills.save(bill("PLDT", "internet", base, "1699.00", null, null, m != 0));
                 }
             }
@@ -80,6 +92,12 @@ public class SeedData {
         }
         b.setPaid(paid);
         return b;
+    }
+
+    // "1850.75" x 1.08 -> "1998.81"
+    private static String scaled(String amount, double factor) {
+        return new BigDecimal(amount).multiply(BigDecimal.valueOf(factor))
+                .setScale(2, java.math.RoundingMode.HALF_UP).toPlainString();
     }
 
     private Budget budget(Category category, String limit) {
