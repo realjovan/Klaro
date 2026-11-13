@@ -56,6 +56,8 @@ public class Receipt {
     // Exact moment the row was created (stored as timestamptz, in UTC).
     private Instant createdAt;
 
+    private String ORNumber;
+
     // Runs automatically the first time the row is saved.
     @PrePersist
     void onCreate() {
