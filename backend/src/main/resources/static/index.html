@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#eef5ff">
   <title>Klaro — make every document make sense</title>
   <link rel="stylesheet" href="styles.css">
+
 </head>
 <body>
   <div class="app-shell">
@@ -22,7 +23,21 @@
         <button type="button" class="nav-item" data-view="All documents" data-route="documents" aria-label="All documents" title="All documents"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 3.75h8l4.25 4.5v12H6a2 2 0 0 1-2-2v-12a2.5 2.5 0 0 1 2-2.5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 4v5h4M8 13h8M8 16.5h8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg><span class="nav-label">All documents</span><span class="nav-count" id="nav-count">4</span></button>
         <button type="button" class="nav-item" data-view="Saved" data-route="saved" aria-label="Saved documents" title="Saved documents"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 4.75A1.75 1.75 0 0 1 7.75 3h8.5A1.75 1.75 0 0 1 18 4.75V21l-6-3.75L6 21V4.75Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg><span class="nav-label">Saved</span><span class="nav-count" id="saved-nav-count">0</span></button>
         <button type="button" class="nav-item" data-view="Needs review" data-route="review" aria-label="Documents needing review" title="Needs review"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.7"/><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="nav-label">Needs review</span><span class="nav-count" id="review-nav-count">1</span></button>
-      </nav>
+        <button
+  type="button"
+  class="nav-item"
+  id="analytics-nav-button"
+  data-view="Analytics"
+  data-route="analytics"
+  aria-label="Analytics"
+  title="Analytics"
+>
+  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M4 19.5h16" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+    <path d="M7 16V11M12 16V5M17 16V8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+  </svg>
+  <span class="nav-label">Analytics</span>
+</button>
       <div class="sidebar-divider"></div>
       <div class="sidebar-spacer"></div>
       <div class="sdg-card"><p class="sdg-kicker">Our purpose · SDG 10</p><strong>Understanding for everyone.</strong><p>Helping every family access information they can actually use.</p></div>
@@ -61,6 +76,124 @@
           </div>
         </section>
 
+        <section class="page-section" id="analytics-page" hidden>
+
+  <div class="page-heading">
+    <p class="eyebrow">FINANCIAL INSIGHTS</p>
+    <h1>Detailed Analytics</h1>
+    <p class="page-description">
+      Explore your household expenses, spending habits, and utility consumption.
+    </p>
+  </div>
+
+  <div class="analytics-heading">
+    <h2>Financial overview</h2>
+    <select id="detailed-analytics-period">
+      <option value="1">This month</option>
+      <option value="3">Last 3 months</option>
+      <option value="6" selected>Last 6 months</option>
+      <option value="12">Last 12 months</option>
+    </select>
+  </div>
+
+  <div class="analytics-cards">
+    <article class="analytics-card">
+      <div class="analytics-card-top">Total expenses</div>
+      <div class="analytics-value" id="detailed-total-expenses">₱0.00</div>
+    </article>
+
+    <article class="analytics-card">
+      <div class="analytics-card-top">Monthly average</div>
+      <div class="analytics-value" id="detailed-average-expenses">₱0.00</div>
+    </article>
+
+    <article class="analytics-card">
+      <div class="analytics-card-top">Highest spending month</div>
+      <div class="analytics-value" id="detailed-highest-month">—</div>
+    </article>
+
+    <article class="analytics-card">
+      <div class="analytics-card-top">Lowest spending month</div>
+      <div class="analytics-value" id="detailed-lowest-month">—</div>
+    </article>
+  </div>
+
+  <div class="analytics-group">
+    <div class="analytics-group-title">
+      <h3>Monthly spending trends</h3>
+      <span>Expenses over time</span>
+    </div>
+    <div class="analytics-card" id="detailed-monthly-chart">
+      <p>No spending data available yet.</p>
+    </div>
+  </div>
+
+  <div class="analytics-group">
+    <div class="analytics-group-title">
+      <h3>Spending by category</h3>
+      <span>Where your money goes</span>
+    </div>
+    <div class="analytics-card" id="detailed-category-breakdown">
+      <p>No category data available yet.</p>
+    </div>
+  </div>
+
+  <div class="analytics-group">
+    <div class="analytics-group-title">
+      <h3>Utility consumption trends</h3>
+      <span>Monthly usage</span>
+    </div>
+    <div class="analytics-utility-grid">
+      <article class="analytics-card analytics-utility">
+        <h3>Electricity</h3>
+        <div id="detailed-electricity">—</div>
+      </article>
+
+      <article class="analytics-card analytics-utility">
+        <h3>Water</h3>
+        <div id="detailed-water">—</div>
+      </article>
+
+      <article class="analytics-card analytics-utility">
+        <h3>Internet</h3>
+        <div id="detailed-internet">—</div>
+      </article>
+    </div>
+  </div>
+
+</section>
+
+        <section class="analytics-overview" id="homepage-analytics" aria-labelledby="analytics-title">
+          <div class="analytics-heading">
+            <div><h2 id="analytics-title">Your spending & usage</h2><p>A quick look at your recorded expenses and utility consumption.</p></div>
+            <label class="visually-hidden" for="analytics-period">Analytics period</label>
+            <select class="analytics-period" id="analytics-period" aria-label="Analytics period">
+              <option value="1">This month</option><option value="3">Last 3 months</option><option value="6" selected>Last 6 months</option><option value="12">Last 12 months</option>
+            </select>
+          </div>
+          <div class="analytics-group">
+            <div class="analytics-group-title"><h3>Financial overview</h3><span id="analytics-financial-period">This month</span></div>
+            <div class="analytics-cards">
+              <article class="analytics-card">
+                <div class="analytics-card-top"><span class="analytics-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M12 2.8v18.4M16.5 7.2c-.6-1.2-2-1.9-4.4-1.9-2.6 0-4.3 1.1-4.3 3 0 4.7 8.6 1.8 8.6 6.4 0 1.9-1.7 3.1-4.4 3.1-2.3 0-4-.8-4.8-2.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span>Total expenses</div>
+                <div class="analytics-value" id="analytics-total-expenses">—</div><div class="analytics-note" id="analytics-total-note">No expense records for this period yet</div>
+              </article>
+              <article class="analytics-card">
+                <div class="analytics-card-top"><span class="analytics-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 18.5h16M6.5 15V9m5.5 6V5m5.5 10v-3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="m4.5 7 4-3 4 2 6-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Average monthly expenses</div>
+                <div class="analytics-value" id="analytics-average-cost">—</div><div class="analytics-note" id="analytics-average-note">Average per recorded expense</div>
+              </article>
+            </div>
+          </div>
+          <div class="analytics-group">
+            <div class="analytics-group-title"><h3>Average consumption</h3><span>Per utility · selected period</span></div>
+            <div class="analytics-utility-grid">
+              <article class="analytics-card analytics-utility"><div class="analytics-card-top"><span class="analytics-icon" style="background:#fff5df;color:#b7791f" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="m13.2 2.8-8 10.1h5.5l-.8 8.3 8.9-11h-5.7l.1-7.4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></span><span class="analytics-utility-label">Electricity</span></div><div class="analytics-value" id="analytics-electricity">—</div><div class="analytics-utility-unit">Average kWh / month</div></article>
+              <article class="analytics-card analytics-utility"><div class="analytics-card-top"><span class="analytics-icon" style="background:#e8f5ff;color:#287bb5" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3s-6.5 7.2-6.5 11.5a6.5 6.5 0 1 0 13 0C18.5 10.2 12 3 12 3Z" stroke="currentColor" stroke-width="1.7"/><path d="M9 15a3 3 0 0 0 3 3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span><span class="analytics-utility-label">Water</span></div><div class="analytics-value" id="analytics-water">—</div><div class="analytics-utility-unit">Average m³ / month</div></article>
+              <article class="analytics-card analytics-utility"><div class="analytics-card-top"><span class="analytics-icon" style="background:#f0edff;color:#7255b5" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M3.5 9a13 13 0 0 1 17 0M6.8 12.5a8 8 0 0 1 10.4 0M10 16a3 3 0 0 1 4 0M12 19.5h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span><span class="analytics-utility-label">Internet</span></div><div class="analytics-value" id="analytics-internet">—</div><div class="analytics-utility-unit">Average GB / month</div></article>
+            </div>
+          </div>
+        </section>
+
         <section class="page-header" id="page-header" hidden aria-labelledby="page-title">
           <div class="page-heading">
             <p class="eyebrow" id="page-kicker">Your workspace</p>
@@ -73,7 +206,7 @@
         <section class="overview" id="overview-stats" aria-label="Document overview">
           <button type="button" class="stat-card" data-stat-view="All documents" aria-label="Show all documents"><div class="stat-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M6 3.75h8l4.25 4.5v12H6a2 2 0 0 1-2-2v-12a2.5 2.5 0 0 1 2-2.5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 4v5h4M8 13h8M8 16.5h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></div><div><div class="stat-number" id="stat-documents">4</div><div class="stat-label">Documents organized</div></div></button>
           <button type="button" class="stat-card" data-stat-view="Needs review" aria-label="Show documents needing review"><div class="stat-icon amber"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.7"/><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div><div class="stat-number" id="stat-review">1</div><div class="stat-label">Need your attention</div></div></button>
-          <button type="button" class="stat-card" data-stat-view="Saved" aria-label="Show saved documents"><div class="stat-icon rose"><svg viewBox="0 0 24 24" fill="none"><path d="M12 20.25s-8.5-4.9-8.5-11.1a4.4 4.4 0 0 1 8.5-1.6 4.4 4.4 0 0 1 8.5 1.6c0 6.2-8.5 11.1-8.5 11.1Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></div><div><div class="stat-number" id="stat-saved">0</div><div class="stat-label">Saved for later</div></div></button>
+         
         </section>
 
         <div class="workspace" id="workspace" data-view="Overview">
@@ -177,7 +310,6 @@ Account holder: Maria Reyes, Quezon City</textarea>
             </article>
           </section>
         </div>
-        <p class="purpose-note">Potential pilot partner: local barangay information desks · Built around UN Sustainable Development Goal 10: Reduced Inequalities.</p>
       </div>
     </main>
   </div>
@@ -269,5 +401,72 @@ Account holder: Maria Reyes, Quezon City</textarea>
 
   <script src="app.js"></script>
   <script src="manual-entry.js"></script>
+  
+<script id="klaro-home-analytics-script">
+(() => {
+  const root = document.getElementById('homepage-analytics');
+  if (!root) return;
+  const $ = id => document.getElementById(id);
+  const money = value => new Intl.NumberFormat('en-PH',{style:'currency',currency:'PHP',maximumFractionDigits:2}).format(value);
+  const number = (value, digits=1) => new Intl.NumberFormat('en-PH',{maximumFractionDigits:digits}).format(value);
+  let records = [];
+  const getDate = r => { const raw = r.date || r.billDate || r.periodEnd || r.billingDate; const d = raw ? new Date(`${String(raw).slice(0,10)}T12:00:00`) : null; return d && !Number.isNaN(d.getTime()) ? d : null; };
+  const getAmount = r => { const n = Number(r.amount ?? r.totalAmount ?? r.total); return Number.isFinite(n) && n > 0 ? n : null; };
+  const getType = r => String(r.billType || r.utilityType || r.category || '').toLowerCase();
+  const getUsage = r => { const n = Number(r.usageAmount ?? r.consumption ?? r.usage); return Number.isFinite(n) && n >= 0 && (r.usageAmount != null || r.consumption != null || r.usage != null) ? n : null; };
+  const getUnit = r => String(r.usageUnit || r.unit || '').toLowerCase();
+  const monthKey = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  const setText = (id, value) => { const el=$(id); if(el) el.textContent=value; };
+
+  function readRecords() {
+    // Integration contract: expose saved receipt/bill objects as window.KlaroAnalytics.getRecords()
+    // or window.KlaroAnalytics.records. The record fields can match the manual-entry form names.
+
+    try {
+      const source = window.KlaroAnalytics;
+      if (source && typeof source.getRecords === 'function') records = source.getRecords() || [];
+      else if (source && Array.isArray(source.records)) records = source.records;
+      else if (Array.isArray(window.klaroAnalyticsRecords)) records = window.klaroAnalyticsRecords;
+      else records = [];
+    } catch (_) { records=[]; }
+    if (!Array.isArray(records)) records=[];
+    render();
+  }
+  function render() {
+    const months = Number($('analytics-period').value || 6);
+    const now = new Date(); const start = new Date(now.getFullYear(),now.getMonth()-(months-1),1);
+    const valid = records.map(r=>({...r,_date:getDate(r),_amount:getAmount(r)})).filter(r=>r._date && r._date>=start && r._date<=new Date(now.getFullYear(),now.getMonth()+1,0,23,59,59));
+    const expenses = valid.filter(r=>r._amount !== null);
+    const total = expenses.reduce((s,r)=>s+r._amount,0);
+    setText('analytics-total-expenses',money(total));
+    setText('analytics-total-note',expenses.length ? `${expenses.length} recorded expense${expenses.length===1?'':'s'} in this period` : 'No expense records for this period yet');
+    const avg = expenses.length ? total/months : null;
+    setText('analytics-average-cost',avg===null?'—':money(avg));
+    setText('analytics-average-note',avg===null?'Average monthly cost · no data yet':`Average per month across ${months} month${months===1?'':'s'}`);
+const periodLabel = months === 1
+  ? 'This month'
+  : `Last ${months} months`;
+
+setText('analytics-financial-period', periodLabel);
+    const utilities=[['electricity','analytics-electricity','kwh'],['water','analytics-water','m3'],['internet','analytics-internet','gb']];
+    utilities.forEach(([kind,id,unit])=>{
+      const readings=valid.filter(r=>getType(r).includes(kind) && getUsage(r)!==null && getUnit(r).replace('³','3')===unit);
+      const byMonth=new Map(); readings.forEach(r=>byMonth.set(monthKey(r._date),(byMonth.get(monthKey(r._date))||0)+getUsage(r)));
+      const vals=[...byMonth.values()];
+      const average=vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
+      setText(id,average===null?'—':`${number(average,2)} ${unit==='kwh'?'kWh':unit==='m3'?'m³':'GB'}`);
+      const card=$(id)?.closest('.analytics-utility'); if(card){const note=card.querySelector('.analytics-utility-unit'); if(note) note.textContent=average===null?'No consumption data yet':`Average across ${vals.length} month${vals.length===1?'':'s'} with readings`;}
+    });
+    
+    const workspace=$('workspace'); if(workspace) root.hidden=workspace.dataset.view!=='Overview';
+  }
+  $('analytics-period').addEventListener('change',render);
+  const workspace=$('workspace'); if(workspace){new MutationObserver(()=>{root.hidden=workspace.dataset.view!=='Overview';}).observe(workspace,{attributes:true,attributeFilter:['data-view']});}
+  window.addEventListener('klaro:records-updated',readRecords);
+  window.addEventListener('storage',readRecords);
+  readRecords();
+})();
+</script>
+
 </body>
 </html>
