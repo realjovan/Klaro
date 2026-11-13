@@ -31,8 +31,10 @@
 
     let activeDocument = "electric";
     let documents = Object.values(docs);
-    const viewRoutes = { Overview: "overview", "All documents": "documents", Saved: "saved", "Needs review": "review" };
-    const routeViews = Object.fromEntries(Object.entries(viewRoutes).map(([view, route]) => [route, view]));
+
+    let analyticsRecords = {receipts: [],bills: []};
+
+const viewRoutes = {Overview: "overview","All documents": "documents",Saved: "saved","Needs review": "review",Analytics: "analytics"};    const routeViews = Object.fromEntries(Object.entries(viewRoutes).map(([view, route]) => [route, view]));
     let activeView = routeViews[window.location.hash.slice(1)] || "Overview";
     if (window.location.hash !== `#${viewRoutes[activeView]}`) {
       window.history.replaceState({ view: activeView }, "", `${window.location.pathname}${window.location.search}#${viewRoutes[activeView]}`);
@@ -126,7 +128,8 @@
         Overview: ["Your documents", "A little more organized, one paper at a time."],
         "All documents": ["All documents", "Search, sort, and open everything in your local library."],
         Saved: ["Saved documents", "The papers you bookmarked for later."],
-        "Needs review": ["Needs review", "Check the text yourself before you rely on it."]
+        "Needs review": ["Needs review", "Check the text yourself before you rely on it."],
+        Analytics: ["Your spending analytics", "Understand your expenses and utility consumption."]
       };
       document.getElementById("list-title").textContent = titles[activeView][0];
       document.getElementById("list-subtitle").textContent = titles[activeView][1];
@@ -267,25 +270,53 @@
         else nav.removeAttribute("aria-current");
       });
       document.getElementById("breadcrumb-current").textContent = activeView;
-      const isOverview = activeView === "Overview";
-      document.querySelector(".welcome").hidden = !isOverview;
-      document.getElementById("overview-stats").hidden = !isOverview;
-      document.getElementById("page-header").hidden = isOverview;
-      document.getElementById("workspace").dataset.view = activeView;
+     const isOverview = activeView === "Overview";
+const isAnalytics = activeView === "Analytics";
+
+document.querySelector(".welcome").hidden = !isOverview;
+document.getElementById("overview-stats").hidden = !isOverview;
+document.getElementById("page-header").hidden = isOverview;
+document.getElementById("workspace").hidden = isAnalytics;
+document.getElementById("workspace").dataset.view = activeView;
+
+// Show homepage analytics ONLY on Overview.
+const homepageAnalytics = document.getElementById("homepage-analytics");
+if (homepageAnalytics) {
+    homepageAnalytics.hidden = !isOverview;
+}
+
+// Show detailed analytics ONLY on the Analytics page.
+const analyticsPage = document.getElementById("analytics-page");
+if (analyticsPage) {
+    analyticsPage.hidden = !isAnalytics;
+}
       document.querySelector(".workspace > section").setAttribute("aria-label", isOverview ? "Your recent documents" : `${activeView} documents`);
       const pageContent = {
-        "All documents": ["Your document library", "Manage every bill, form, notice, and record saved on this device."],
-        Saved: ["Saved for later", "Keep important papers close at hand. Open a document to review its details or remove its bookmark."],
-        "Needs review": ["Check these documents", "Review text and correct important names, dates, and amounts before relying on them."]
-      };
+      "All documents": ["Your document library", "Manage every bill, form, notice, and record saved on this device."],
+      Saved: ["Saved for later", "Keep important papers close at hand. Open a document to review its details or remove its bookmark."],
+      "Needs review": ["Check these documents", "Review text and correct important names, dates, and amounts before relying on them."],
+      Analytics: ["Your spending analytics", "Understand your expenses, spending patterns, and utility consumption."]
+    };
       if (!isOverview) {
-        document.getElementById("page-title").textContent = pageContent[activeView][0];
-        document.getElementById("page-description").textContent = pageContent[activeView][1];
-        document.getElementById("page-kicker").textContent = activeView === "Needs review" ? "Your attention" : "Your workspace";
-      }
+  document.getElementById("page-title").textContent = pageContent[activeView][0];
+  document.getElementById("page-description").textContent = pageContent[activeView][1];
+
+  document.getElementById("page-kicker").textContent =
+    activeView === "Needs review"
+      ? "Your attention"
+      : activeView === "Analytics"
+        ? "Your insights"
+        : "Your workspace";
+}
       updateOverview();
-      renderDocuments();
-      const visible = getVisibleDocuments();
+renderDocuments();
+
+// Refresh the detailed analytics whenever its page is displayed.
+if (isAnalytics) {
+  renderDetailedAnalytics();
+}
+
+const visible = getVisibleDocuments();
       const doc = visible.find(item => item.id === activeDocument) || visible[0] || null;
       activeDocument = doc ? doc.id : null;
       updateDocumentLabel(doc);
@@ -358,16 +389,291 @@
 
     // Fetch everything from the backend and redraw. Also called by manual-entry.js after a save.
     async function reloadDocuments() {
-      const [receipts, bills] = await Promise.all(["/api/receipts", "/api/bills"].map(async url => {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`${url} returned ${response.status}`);
-        return response.json();
-      }));
-      documents = [...receipts.map(receiptToDocument), ...bills.map(billToDocument)];
-      if (!documents.some(doc => doc.id === activeDocument)) activeDocument = documents[0] ? documents[0].id : null;
-      updateCategoryFilter();
-      renderApp();
+  const [receipts, bills] = await Promise.all([
+    "/api/receipts",
+    "/api/bills"
+  ].map(async url => {
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(`${url} returned ${response.status}`);
     }
+
+    return response.json();
+  }));
+
+  // Keep the original backend data for Analytics.
+  analyticsRecords.receipts = receipts;
+  analyticsRecords.bills = bills;
+
+  // Continue converting the records for the document library.
+  documents = [
+    ...receipts.map(receiptToDocument),
+    ...bills.map(billToDocument)
+  ];
+
+  if (!documents.some(doc => doc.id === activeDocument)) {
+    activeDocument = documents[0] ? documents[0].id : null;
+  }
+
+  updateCategoryFilter();
+  renderApp();
+}
+
+function renderDetailedAnalytics() {
+  const receipts = analyticsRecords.receipts || [];
+  const bills = analyticsRecords.bills || [];
+
+  const money = value =>
+    new Intl.NumberFormat("en-PH", {
+      style: "currency",
+      currency: "PHP",
+      maximumFractionDigits: 2
+    }).format(value);
+
+  const number = value =>
+    new Intl.NumberFormat("en-PH", {
+      maximumFractionDigits: 2
+    }).format(value);
+
+  const setText = (id, value) => {
+    const element = document.getElementById(id);
+    if (element) element.textContent = value;
+  };
+
+  const parseDate = value => {
+    if (!value) return null;
+
+    const date = new Date(`${String(value).slice(0, 10)}T12:00:00`);
+
+    return Number.isNaN(date.getTime()) ? null : date;
+  };
+
+  const monthKey = date =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+
+  const monthLabel = date =>
+    date.toLocaleDateString("en-PH", { month: "short", year: "numeric" });
+
+  // Convert backend records into a consistent analytics format.
+  const expenseRecords = [
+    ...receipts.map(receipt => ({
+      date: parseDate(receipt.receiptDate || receipt.createdAt),
+      amount: Number(receipt.amountPaid),
+      category: receipt.category
+        ? receipt.category.charAt(0) + receipt.category.slice(1).toLowerCase()
+        : "Other",
+      source: "Receipt"
+    })),
+
+    ...bills.map(bill => ({
+      // Prefer the billing period over the due date when available.
+      date: parseDate(
+        bill.billingPeriodEnd ||
+        bill.billingPeriodStart ||
+        bill.billingDueDate ||
+        bill.createdAt
+      ),
+      amount: Number(bill.amountToPay),
+      category: bill.type
+        ? bill.type.charAt(0).toUpperCase() + bill.type.slice(1).toLowerCase()
+        : "Utility bill",
+      source: "Bill"
+    }))
+  ].filter(record =>
+    record.date &&
+    Number.isFinite(record.amount) &&
+    record.amount > 0
+  );
+
+  // Show the most recent six calendar months.
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+
+  const filtered = expenseRecords.filter(record =>
+    record.date >= start &&
+    record.date <= now
+  );
+
+  // Financial summary.
+  const total = filtered.reduce((sum, record) => sum + record.amount, 0);
+  const average = total / 6;
+
+  setText("detailed-total-expenses", money(total));
+  setText("detailed-average-expenses", money(average));
+
+  // Monthly spending totals.
+  const monthlyTotals = [];
+
+  for (let i = 5; i >= 0; i--) {
+    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = monthKey(date);
+
+    const value = filtered
+      .filter(record => monthKey(record.date) === key)
+      .reduce((sum, record) => sum + record.amount, 0);
+
+    monthlyTotals.push({
+      key,
+      label: monthLabel(date),
+      value
+    });
+  }
+
+  const monthsWithExpenses = monthlyTotals.filter(month => month.value > 0);
+
+  const highest = monthsWithExpenses.length
+    ? monthsWithExpenses.reduce((a, b) => a.value > b.value ? a : b)
+    : null;
+
+  const lowest = monthsWithExpenses.length
+    ? monthsWithExpenses.reduce((a, b) => a.value < b.value ? a : b)
+    : null;
+
+  setText(
+    "detailed-highest-month",
+    highest ? `${highest.label} · ${money(highest.value)}` : "—"
+  );
+
+  setText(
+    "detailed-lowest-month",
+    lowest ? `${lowest.label} · ${money(lowest.value)}` : "—"
+  );
+
+  // Monthly spending chart.
+  const chart = document.getElementById("detailed-monthly-chart");
+
+  if (chart) {
+    chart.replaceChildren();
+
+    const maxValue = Math.max(
+      ...monthlyTotals.map(month => month.value),
+      0
+    );
+
+    if (maxValue === 0) {
+      const empty = document.createElement("p");
+      empty.className = "analytics-empty";
+      empty.textContent = "No expense records for the last six months.";
+      chart.append(empty);
+    } else {
+      monthlyTotals.forEach(month => {
+        const column = document.createElement("div");
+        column.className = "analytics-bar-column";
+
+        const value = document.createElement("span");
+        value.className = "analytics-bar-value";
+        value.textContent = month.value ? money(month.value) : "—";
+
+        const track = document.createElement("div");
+        track.className = "analytics-bar-track";
+
+        const bar = document.createElement("div");
+        bar.className = "analytics-bar";
+        bar.style.height = month.value
+          ? `${Math.max(4, month.value / maxValue * 100)}%`
+          : "0%";
+
+        const label = document.createElement("span");
+        label.className = "analytics-bar-month";
+        label.textContent = month.label;
+
+        track.append(bar);
+        column.append(value, track, label);
+        chart.append(column);
+      });
+    }
+  }
+
+  // Spending by category.
+  const categoryContainer = document.getElementById(
+    "detailed-category-breakdown"
+  );
+
+  if (categoryContainer) {
+    categoryContainer.replaceChildren();
+
+    const categories = new Map();
+
+    filtered.forEach(record => {
+      categories.set(
+        record.category,
+        (categories.get(record.category) || 0) + record.amount
+      );
+    });
+
+    const sortedCategories = [...categories.entries()]
+      .sort((a, b) => b[1] - a[1]);
+
+    if (!sortedCategories.length) {
+      const empty = document.createElement("p");
+      empty.className = "analytics-empty";
+      empty.textContent = "No category data available yet.";
+      categoryContainer.append(empty);
+    } else {
+      sortedCategories.forEach(([category, amount]) => {
+        const row = document.createElement("div");
+        row.className = "analytics-category-row";
+
+        const label = document.createElement("span");
+        label.textContent = category;
+
+        const value = document.createElement("strong");
+        value.textContent = money(amount);
+
+        const percentage = document.createElement("span");
+        percentage.className = "analytics-category-percentage";
+        percentage.textContent = `${number(amount / total * 100)}%`;
+
+        row.append(label, value, percentage);
+        categoryContainer.append(row);
+      });
+    }
+  }
+
+  // Utility consumption totals.
+  const utilityTypes = [
+    { type: "electricity", id: "detailed-electricity", unit: "kWh" },
+    { type: "water", id: "detailed-water", unit: "m³" },
+    { type: "internet", id: "detailed-internet", unit: "GB" }
+  ];
+
+  utilityTypes.forEach(utility => {
+    const readings = bills.filter(bill => {
+      const type = String(bill.type || "").toLowerCase();
+      const date = parseDate(
+        bill.billingPeriodEnd ||
+        bill.billingPeriodStart ||
+        bill.billingDueDate ||
+        bill.createdAt
+      );
+
+      const usage = Number(bill.usageAmount);
+      const unit = String(bill.usageUnit || "").toLowerCase()
+        .replace("³", "3");
+
+      return type.includes(utility.type) &&
+        date &&
+        date >= start &&
+        date <= now &&
+        Number.isFinite(usage) &&
+        usage >= 0 &&
+        unit === utility.unit.toLowerCase().replace("³", "3");
+    });
+
+    const totalUsage = readings.reduce(
+      (sum, bill) => sum + Number(bill.usageAmount),
+      0
+    );
+
+    setText(
+      utility.id,
+      readings.length
+        ? `${number(totalUsage)} ${utility.unit}`
+        : "—"
+    );
+  });
+}
 
     async function initializeApp() {
       try {
