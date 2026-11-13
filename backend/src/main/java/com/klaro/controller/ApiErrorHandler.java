@@ -4,12 +4,14 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
+import com.klaro.service.ChatException;
 import com.klaro.service.ExtractionException;
 
 /**
@@ -34,6 +36,12 @@ public class ApiErrorHandler {
     @ResponseStatus(HttpStatus.BAD_GATEWAY)
     public Map<String, String> extractionFailed(ExtractionException ex) {
         return Map.of("error", ex.getMessage());
+    }
+
+    @ExceptionHandler(ChatException.class)
+    public ResponseEntity<Map<String, Object>> chatFailed(ChatException ex) {
+        return ResponseEntity.status(ex.getStatus())
+                .body(Map.of("error", ex.getMessage(), "code", ex.getCode(), "retryable", ex.isRetryable()));
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)

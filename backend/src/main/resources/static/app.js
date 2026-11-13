@@ -593,15 +593,44 @@
       return `The document text ${matches.length ? "that may be relevant" : "available to review"}: ${relevantLines.join(" · ")}. Check the original document before acting.`;
     }
 
-    // Gets the assistant's reply. For now this is the local text lookup with a
-    // short pause, so the "thinking" animation is visible. When the AI chat is
-    // connected, replace the body with a call such as:
-    //   const r = await fetch("/api/chat", { method: "POST", headers: {"Content-Type": "application/json"},
-    //                                       body: JSON.stringify({ question, documentId: doc.id }) });
-    //   return { text: (await r.json()).reply, source: "Klaro AI" };
+    // Gets the assistant's reply from the backend (POST /api/chat), which asks the
+    // Lumen AI Chat assistant along with the user's spending data. The reply can
+    // take up to about 25 seconds. The conversation id is kept for this browser
+    // tab so follow-up questions continue the same conversation.
+    // If AI chat isn't set up on the server, it falls back to the local text lookup.
     async function getAnswer(question, doc) {
-      await new Promise(resolve => setTimeout(resolve, 700 + Math.random() * 600));
-      return { text: answerFromDocument(question, doc), source: "Local text lookup · No AI connected" };
+      let response;
+      let data = {};
+      try {
+        response = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            question,
+            documentId: doc.id,
+            sessionId: sessionStorage.getItem("klaro-chat-session"),
+            language
+          })
+        });
+        data = await response.json().catch(() => ({}));
+      } catch (error) {
+        console.error("Could not reach the chat service.", error);
+        return { text: "I couldn't reach the server. Is the backend running?", source: "Connection error" };
+      }
+      if (response.ok && data.reply) {
+        sessionStorage.setItem("klaro-chat-session", data.sessionId);
+        return {
+          text: data.reply,
+          source: data.degraded ? "Klaro AI · some sources were unavailable" : "Klaro AI · check important details"
+        };
+      }
+      if (data.code === "AI_NOT_CONFIGURED") {
+        return { text: answerFromDocument(question, doc), source: "Local text lookup · AI chat is not set up" };
+      }
+      return {
+        text: data.error || `Something went wrong (error ${response.status}). Please try again.`,
+        source: data.retryable ? "You can ask again" : "Klaro AI unavailable"
+      };
     }
 
     let chatBusy = false;
